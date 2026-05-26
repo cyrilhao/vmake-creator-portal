@@ -3,7 +3,6 @@ import type { Platform } from "@/lib/rewards/rewardTypes";
 export type BulkContentRowDraft = {
   platform: Platform;
   url: string;
-  monthlyViews: string;
   publishedAt: string;
 };
 
@@ -17,18 +16,16 @@ export type BulkParseResult = {
   issues: BulkParseIssue[];
 };
 
-const platformAliases: Record<string, Platform> = {
-  x: "x",
-  twitter: "x",
-  instagram: "instagram",
-  ig: "instagram",
-  tiktok: "tiktok",
-  youtube: "youtube",
-  yt: "youtube",
-  pinterest: "pinterest",
-  pin: "pinterest",
-  lemon8: "lemon8",
-  threads: "threads",
+export type PlatformContentCount = Record<Platform, number>;
+
+const platformHosts: Record<Platform, string[]> = {
+  x: ["x.com", "twitter.com"],
+  instagram: ["instagram.com"],
+  tiktok: ["tiktok.com"],
+  youtube: ["youtube.com", "youtu.be"],
+  pinterest: ["pinterest.com", "pin.it"],
+  lemon8: ["lemon8-app.com", "lemon8.com"],
+  threads: ["threads.net"],
 };
 
 export function parseBulkContentInput(input: string, rewardMonth: string): BulkParseResult {
@@ -44,26 +41,23 @@ export function parseBulkContentInput(input: string, rewardMonth: string): BulkP
   lines.forEach((line, lineIndex) => {
     const delimiter = line.includes("\t") ? "\t" : ",";
     const rawCells = line.split(delimiter).map((cell) => cell.trim());
-    const cells =
-      delimiter === "," && rawCells.length > 4
-        ? [rawCells[0], rawCells[1], rawCells.slice(2, -1).join(""), rawCells.at(-1) ?? ""]
-        : rawCells;
+    const cells = rawCells.filter(Boolean);
 
-    if (cells.length < 3) {
+    if (cells.length < 1) {
       issues.push({
         line: lineIndex + 1,
-        message: "Use platform, link, views, and optional published date.",
+        message: "Paste one content URL per line, with an optional published date.",
       });
       return;
     }
 
-    const [platformInput, url, viewsInput, publishedAt = defaultPublishedAt] = cells;
-    const platform = parsePlatform(platformInput);
+    const [url, publishedAt = defaultPublishedAt] = cells;
+    const platform = detectPlatformFromUrl(url);
 
     if (!platform) {
       issues.push({
         line: lineIndex + 1,
-        message: `Unsupported platform "${platformInput}".`,
+        message: "URL must be from X, Instagram, TikTok, YouTube, Pinterest, Lemon8, or Threads.",
       });
       return;
     }
@@ -71,7 +65,6 @@ export function parseBulkContentInput(input: string, rewardMonth: string): BulkP
     rows.push({
       platform,
       url,
-      monthlyViews: normalizeViews(viewsInput),
       publishedAt,
     });
   });
@@ -79,10 +72,39 @@ export function parseBulkContentInput(input: string, rewardMonth: string): BulkP
   return { rows, issues };
 }
 
-function parsePlatform(value: string) {
-  return platformAliases[value.trim().toLowerCase()] ?? null;
+export function summarizeBulkContent(rows: BulkContentRowDraft[]) {
+  const platformContentCounts = {
+    x: 0,
+    instagram: 0,
+    tiktok: 0,
+    youtube: 0,
+    pinterest: 0,
+    lemon8: 0,
+    threads: 0,
+  } satisfies PlatformContentCount;
+
+  rows.forEach((row) => {
+    platformContentCounts[row.platform] += 1;
+  });
+
+  return {
+    contentCount: rows.length,
+    platformContentCounts,
+  };
 }
 
-function normalizeViews(value: string) {
-  return value.replace(/,/g, "").trim();
+function detectPlatformFromUrl(url: string) {
+  let hostname: string;
+
+  try {
+    hostname = new URL(url.trim()).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+
+  return (
+    Object.entries(platformHosts).find(([, hosts]) =>
+      hosts.some((host) => hostname === host || hostname.endsWith(`.${host}`)),
+    )?.[0] ?? null
+  ) as Platform | null;
 }

@@ -2,61 +2,26 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { calculateSubmissionReward } from "@/lib/rewards/calculateReward";
-import type { Platform } from "@/lib/rewards/rewardTypes";
-import { supportedPlatforms } from "@/lib/rewards/rewardTypes";
 import { vmakeCreatorProgramRulesV1 } from "@/lib/rewards/vmakeRules";
 import { parseBulkContentInput } from "@/lib/submissions/parseBulkContent";
+import { summarizeBulkContent } from "@/lib/submissions/parseBulkContent";
 import type { SubmissionValidationIssue } from "@/lib/submissions/submissionTypes";
 import type { CreatorSubmissionDraft } from "@/lib/submissions/submissionTypes";
 import { validateCreatorSubmission } from "@/lib/submissions/validateSubmission";
 
-type ContentFormRow = {
-  id: string;
-  platform: Platform;
-  url: string;
-  publishedAt: string;
-  monthlyViews: string;
-};
-
 type SubmittedPreview = {
   submittedAt: string;
-  contentCount: number;
   referralCount: number;
   internalEstimatedAmount: number;
-};
-
-const platformLabels: Record<Platform, string> = {
-  x: "X",
-  instagram: "Instagram",
-  tiktok: "TikTok",
-  youtube: "YouTube",
-  pinterest: "Pinterest",
-  lemon8: "Lemon8",
-  threads: "Threads",
+  internalContentCount: number;
+  internalPlatformCounts: Record<string, number>;
 };
 
 const currentRewardMonth = "2026-05";
-const defaultPublishedDate = "2026-05-01";
-const maxPublishedDate = "2026-05-31";
-
-function createRowId() {
-  return `content-${crypto.randomUUID()}`;
-}
-
-function defaultContentRow(): ContentFormRow {
-  return {
-    id: createRowId(),
-    platform: "tiktok",
-    url: "",
-    publishedAt: defaultPublishedDate,
-    monthlyViews: "",
-  };
-}
-
 export function CreatorSubmissionForm() {
   const [creatorId, setCreatorId] = useState("creator-demo");
   const [bulkInput, setBulkInput] = useState("");
-  const [contentRows, setContentRows] = useState<ContentFormRow[]>([defaultContentRow()]);
+  const [totalMonthlyViews, setTotalMonthlyViews] = useState("");
   const [referralText, setReferralText] = useState("");
   const [issues, setIssues] = useState<SubmissionValidationIssue[]>([]);
   const [bulkParseMessages, setBulkParseMessages] = useState<string[]>([]);
@@ -72,66 +37,48 @@ export function CreatorSubmissionForm() {
   );
 
   const issueSummary = useMemo(() => summarizeIssues(issues), [issues]);
-  const rowIssueMap = useMemo(() => mapRowIssues(issues), [issues]);
 
-  function updateContentRow(id: string, updates: Partial<ContentFormRow>) {
-    setContentRows((rows) =>
-      rows.map((row) => (row.id === id ? { ...row, ...updates } : row)),
-    );
-  }
-
-  function addContentRow() {
-    setContentRows((rows) => [...rows, defaultContentRow()]);
-  }
-
-  function removeContentRow(id: string) {
-    setContentRows((rows) => (rows.length === 1 ? rows : rows.filter((row) => row.id !== id)));
-  }
-
-  function applyBulkInput() {
+  function submitCreatorContent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const parsed = parseBulkContentInput(bulkInput, currentRewardMonth);
 
     setBulkParseMessages(parsed.issues.map((issue) => `Line ${issue.line}: ${issue.message}`));
 
-    if (parsed.rows.length === 0) {
+    if (parsed.rows.length === 0 || parsed.issues.length > 0) {
+      setSubmittedPreview(null);
       return;
     }
 
-    setContentRows(
-      parsed.rows.map((row) => ({
-        id: createRowId(),
-        platform: row.platform,
-        url: row.url,
-        monthlyViews: row.monthlyViews,
-        publishedAt: row.publishedAt,
-      })),
-    );
-    setIssues([]);
-    setSubmittedPreview(null);
-  }
-
-  function submitCreatorContent(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+    const totalViews = Number(totalMonthlyViews);
+    const summary = summarizeBulkContent(parsed.rows);
 
     const draft: CreatorSubmissionDraft = {
       creatorId,
       rewardMonth: currentRewardMonth,
       status: "submitted",
       referralDiscordUsernames,
-      contentItems: contentRows.map((row) => ({
-        id: row.id,
+      contentItems: parsed.rows.map((row) => ({
+        id: `content-${crypto.randomUUID()}`,
         platform: row.platform,
         url: row.url,
         publishedAt: row.publishedAt,
-        monthlyViews: Number(row.monthlyViews),
+        monthlyViews: 0,
         status: "pending",
       })),
     };
 
     const validation = validateCreatorSubmission(draft, []);
+    const submissionIssues = [...validation.issues];
 
-    if (!validation.valid) {
-      setIssues(validation.issues);
+    if (!Number.isInteger(totalViews) || totalViews < 0) {
+      submissionIssues.push({
+        field: "totalMonthlyViews",
+        message: "Monthly total views must be zero or greater.",
+      });
+    }
+
+    if (submissionIssues.length > 0) {
+      setIssues(submissionIssues);
       setSubmittedPreview(null);
       return;
     }
@@ -142,8 +89,9 @@ export function CreatorSubmissionForm() {
         submissionId: `local-${Date.now()}`,
         status: "submitted",
         hasPreviousValidPost: false,
+        totalViewsOverride: totalViews,
         contentItems: draft.contentItems.map((contentItem) => ({
-          id: contentItem.id ?? createRowId(),
+          id: contentItem.id ?? `content-${crypto.randomUUID()}`,
           platform: contentItem.platform,
           url: contentItem.url,
           monthlyViews: contentItem.monthlyViews,
@@ -166,9 +114,10 @@ export function CreatorSubmissionForm() {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      contentCount: contentRows.length,
       referralCount: referralDiscordUsernames.length,
       internalEstimatedAmount: rewardResult.estimatedAmount,
+      internalContentCount: summary.contentCount,
+      internalPlatformCounts: summary.platformContentCounts,
     });
   }
 
@@ -189,30 +138,23 @@ export function CreatorSubmissionForm() {
       </div>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
           <div>
             <p className="text-sm font-semibold text-white">Bulk paste</p>
             <p className="mt-1 text-xs leading-5 text-slate-400">
-              Paste one row per content item using comma or tab separation. Format:
-              platform, link, views, optional published date.
+              Paste one content URL per line. The system will classify the platform automatically.
+              You can optionally add a published date after the URL using a comma.
             </p>
           </div>
-          <button
-            className="rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
-            onClick={applyBulkInput}
-            type="button"
-          >
-            Load rows
-          </button>
         </div>
 
         <textarea
           className="creator-input mt-4 min-h-36 resize-y font-mono text-sm"
           onChange={(event) => setBulkInput(event.target.value)}
           placeholder={[
-            "TikTok, https://www.tiktok.com/@vmake/video/1, 12000, 2026-05-10",
-            "Instagram, https://www.instagram.com/reel/abc, 8900, 2026-05-14",
-            "YouTube\thttps://youtu.be/xyz\t32000",
+            "https://www.tiktok.com/@vmake/video/1",
+            "https://www.instagram.com/reel/abc",
+            "https://youtu.be/xyz, 2026-05-09",
           ].join("\n")}
           value={bulkInput}
         />
@@ -229,132 +171,17 @@ export function CreatorSubmissionForm() {
         ) : null}
       </section>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-white">Content table</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Edit parsed rows before submission. Pasted rows default to the first day of the reward month when no date is provided.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
-              onClick={addContentRow}
-              type="button"
-            >
-              Add row
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#0b1020]">
-          <table className="w-full min-w-[860px] border-collapse text-left text-sm">
-            <thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-slate-400">
-              <tr>
-                <th className="px-3 py-3 font-semibold">#</th>
-                <th className="px-3 py-3 font-semibold">Platform</th>
-                <th className="px-3 py-3 font-semibold">Content link</th>
-                <th className="px-3 py-3 font-semibold">Views</th>
-                <th className="px-3 py-3 font-semibold">Published</th>
-                <th className="px-3 py-3 font-semibold">Status</th>
-                <th className="px-3 py-3 font-semibold">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contentRows.map((row, index) => {
-                const rowIssues = rowIssueMap.get(index) ?? [];
-
-                return (
-                  <tr className="border-t border-white/10 align-top" key={row.id}>
-                    <td className="px-3 py-3 text-slate-400">{index + 1}</td>
-                    <td className="px-3 py-3">
-                      <select
-                        className="creator-input min-w-[120px] py-2"
-                        onChange={(event) =>
-                          updateContentRow(row.id, {
-                            platform: event.target.value as Platform,
-                          })
-                        }
-                        value={row.platform}
-                      >
-                        {supportedPlatforms.map((platform) => (
-                          <option key={platform} value={platform}>
-                            {platformLabels[platform]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        className="creator-input py-2"
-                        onChange={(event) =>
-                          updateContentRow(row.id, { url: event.target.value })
-                        }
-                        placeholder="https://..."
-                        type="url"
-                        value={row.url}
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        className="creator-input min-w-[120px] py-2"
-                        inputMode="numeric"
-                        min="0"
-                        onChange={(event) =>
-                          updateContentRow(row.id, { monthlyViews: event.target.value })
-                        }
-                        placeholder="12000"
-                        type="number"
-                        value={row.monthlyViews}
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        className="creator-input min-w-[150px] py-2"
-                        max={maxPublishedDate}
-                        min={defaultPublishedDate}
-                        onChange={(event) =>
-                          updateContentRow(row.id, { publishedAt: event.target.value })
-                        }
-                        type="date"
-                        value={row.publishedAt}
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      {rowIssues.length === 0 ? (
-                        <span className="rounded-full bg-emerald-300/15 px-2.5 py-1 text-xs font-semibold text-emerald-200">
-                          Ready
-                        </span>
-                      ) : (
-                        <div className="space-y-2">
-                          <span className="rounded-full bg-red-300/15 px-2.5 py-1 text-xs font-semibold text-red-100">
-                            Needs fixes
-                          </span>
-                          <ul className="space-y-1 text-xs leading-5 text-red-100">
-                            {rowIssues.map((issue) => (
-                              <li key={issue}>{issue}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
-                      <button
-                        className="text-sm text-slate-400 hover:text-white"
-                        onClick={() => removeContentRow(row.id)}
-                        type="button"
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <FieldShell label="Monthly total views">
+        <input
+          className="creator-input"
+          inputMode="numeric"
+          min="0"
+          onChange={(event) => setTotalMonthlyViews(event.target.value)}
+          placeholder="Example: 128400"
+          type="number"
+          value={totalMonthlyViews}
+        />
+      </FieldShell>
 
       <FieldShell label="Referral Discord usernames">
         <textarea
@@ -390,12 +217,11 @@ export function CreatorSubmissionForm() {
         <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-4">
           <p className="text-sm font-semibold text-emerald-100">Submission received</p>
           <p className="mt-2 text-sm text-slate-300">
-            {submittedPreview.contentCount} content link
-            {submittedPreview.contentCount === 1 ? "" : "s"} and{" "}
+            Your content links and monthly views were submitted at {submittedPreview.submittedAt}.
+            {" "}
             {submittedPreview.referralCount} referral
             {submittedPreview.referralCount === 1 ? "" : "s"} submitted at{" "}
-            {submittedPreview.submittedAt}. Your final reward will be confirmed
-            after admin review.
+            the same time. Your final reward will be confirmed after admin review.
           </p>
         </div>
       ) : null}
@@ -418,25 +244,6 @@ function summarizeIssues(issues: SubmissionValidationIssue[]) {
   });
 
   return Array.from(counts.entries());
-}
-
-function mapRowIssues(issues: SubmissionValidationIssue[]) {
-  const rowIssues = new Map<number, string[]>();
-
-  issues.forEach((issue) => {
-    const match = issue.field.match(/^contentItems\[(\d+)\]/);
-
-    if (!match) {
-      return;
-    }
-
-    const rowIndex = Number(match[1]);
-    const current = rowIssues.get(rowIndex) ?? [];
-    current.push(issue.message);
-    rowIssues.set(rowIndex, current);
-  });
-
-  return rowIssues;
 }
 
 function FieldShell({

@@ -17,10 +17,19 @@ export function calculateSubmissionReward(
   const platformBreakdown = Object.fromEntries(
     supportedPlatforms.map((platform) => [platform, 0]),
   ) as Record<Platform, number>;
+  const platformContentCounts = Object.fromEntries(
+    supportedPlatforms.map((platform) => [platform, 0]),
+  ) as Record<Platform, number>;
 
-  let totalValidViews = 0;
+  let totalValidViews = input.totalViewsOverride ?? 0;
 
   for (const item of validContent) {
+    platformContentCounts[item.platform] += 1;
+
+    if (input.totalViewsOverride !== undefined) {
+      continue;
+    }
+
     const safeViews = Math.max(0, item.monthlyViews);
     totalValidViews += safeViews;
     platformBreakdown[item.platform] += safeViews;
@@ -149,6 +158,7 @@ export function calculateSubmissionReward(
     totalValidViews,
     validContentCount: validContent.length,
     platformBreakdown,
+    platformContentCounts,
     lineItems,
     estimatedAmountBeforeCap,
     capApplied,

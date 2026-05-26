@@ -54,6 +54,7 @@ export type SubmissionRewardInput = {
   status: SubmissionStatus;
   hasPreviousValidPost: boolean;
   contentItems: ContentItemInput[];
+  totalViewsOverride?: number;
   referrals?: ReferralInput[];
   manualAdjustment?: ManualAdjustmentInput;
 };
@@ -118,6 +119,7 @@ export type SubmissionRewardResult = {
   totalValidViews: number;
   validContentCount: number;
   platformBreakdown: Record<Platform, number>;
+  platformContentCounts: Record<Platform, number>;
   lineItems: RewardLineItem[];
   estimatedAmountBeforeCap: number;
   capApplied: boolean;

@@ -28,6 +28,7 @@ const submissionInput = (
   status: overrides.status ?? "submitted",
   hasPreviousValidPost: overrides.hasPreviousValidPost ?? true,
   contentItems: overrides.contentItems ?? [],
+  totalViewsOverride: overrides.totalViewsOverride,
   referrals: overrides.referrals,
   manualAdjustment: overrides.manualAdjustment,
 });
@@ -199,6 +200,33 @@ describe("calculateSubmissionReward", () => {
       lemon8: 1000,
       threads: 1000,
     });
+  });
+
+  it("supports total monthly views as a creator-level aggregate while still counting platforms", () => {
+    const result = calculateSubmissionReward(
+      submissionInput({
+        totalViewsOverride: 18000,
+        contentItems: [
+          validContent({ id: "x", platform: "x", monthlyViews: 0 }),
+          validContent({ id: "ig", platform: "instagram", monthlyViews: 0 }),
+          validContent({ id: "ig-2", platform: "instagram", monthlyViews: 0 }),
+        ],
+      }),
+      vmakeCreatorProgramRulesV1,
+    );
+
+    expect(result.totalValidViews).toBe(18000);
+    expect(result.validContentCount).toBe(3);
+    expect(result.platformContentCounts).toMatchObject({
+      x: 1,
+      instagram: 2,
+      tiktok: 0,
+      youtube: 0,
+      pinterest: 0,
+      lemon8: 0,
+      threads: 0,
+    });
+    expect(result.estimatedAmount).toBe(40);
   });
 
   it("applies US$30 per valid referral only", () => {
