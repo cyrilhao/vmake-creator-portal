@@ -8,4 +8,5 @@ playwright-report
 test-results
 tools/downloads
 tools/node
+tools/gh
 .vercel
