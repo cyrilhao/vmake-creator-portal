@@ -1,4 +1,7 @@
+import { headers } from "next/headers";
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { CreatorSubmissionForm } from "@/components/creator/CreatorSubmissionForm";
+import { isAdminHostname, parseHostnameList } from "@/lib/access/hostAccess";
 
 const supportedPlatforms = ["X", "Instagram", "TikTok", "YouTube", "Pinterest", "Lemon8", "Threads"];
 
@@ -17,7 +20,15 @@ const submissionSteps = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const headerStore = await headers();
+  const hostname = headerStore.get("host") ?? "";
+  const adminHostnames = parseHostnameList(process.env.ADMIN_APP_HOSTNAMES);
+
+  if (isAdminHostname(hostname, adminHostnames)) {
+    return <AdminDashboard />;
+  }
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),linear-gradient(180deg,_#071120_0%,_#0d1526_48%,_#08101c_100%)] text-white">
       <section className="border-b border-white/10">

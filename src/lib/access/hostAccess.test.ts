@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseHostnameList, resolveAccessDecision } from "./hostAccess";
+import {
+  isAdminHostname,
+  parseHostnameList,
+  resolveAccessDecision,
+} from "./hostAccess";
 
 describe("parseHostnameList", () => {
   it("normalizes hostname lists from env values", () => {
@@ -14,6 +18,10 @@ describe("parseHostnameList", () => {
 });
 
 describe("resolveAccessDecision", () => {
+  it("matches admin hosts regardless of port casing", () => {
+    expect(isAdminHostname("Admin.Vmake.AI:443", ["admin.vmake.ai"])).toBe(true);
+  });
+
   it("rewrites the admin hostname root path into the admin dashboard", () => {
     expect(
       resolveAccessDecision({

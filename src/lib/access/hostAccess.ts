@@ -9,8 +9,13 @@ type AccessInput = {
   adminHostnames: string[];
 };
 
-function normalizeHostname(hostname: string) {
+export function normalizeHostname(hostname: string) {
   return hostname.trim().toLowerCase().replace(/:\d+$/, "");
+}
+
+export function isAdminHostname(hostname: string, adminHostnames: string[]) {
+  const normalizedHostname = normalizeHostname(hostname);
+  return adminHostnames.map(normalizeHostname).includes(normalizedHostname);
 }
 
 export function parseHostnameList(value: string | undefined) {
@@ -29,16 +34,14 @@ export function resolveAccessDecision({
   hostname,
   adminHostnames,
 }: AccessInput): AccessDecision {
-  const normalizedHostname = normalizeHostname(hostname);
-  const normalizedAdminHosts = adminHostnames.map(normalizeHostname);
   const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
-  const isAdminHost = normalizedAdminHosts.includes(normalizedHostname);
+  const isAdminHost = isAdminHostname(hostname, adminHostnames);
 
   if (isAdminHost && pathname === "/") {
     return { rewriteTo: "/admin" };
   }
 
-  if (isAdminPath && normalizedAdminHosts.length > 0 && !isAdminHost) {
+  if (isAdminPath && adminHostnames.length > 0 && !isAdminHost) {
     return { redirectTo: "/" };
   }
 
