@@ -1,6 +1,6 @@
 # Vmake Creator Program
 
-Web product for managing the Vmake Creator Program. Creators submit monthly content performance data, the system calculates estimated rewards from versioned reward rules, and admins review, adjust, approve, and mark payouts as paid.
+Web product for managing the Vmake Creator Program. Creators submit monthly content performance data from the public portal, the system calculates estimated rewards from versioned reward rules, and admins review, adjust, approve, and mark payouts as paid from a separate admin surface.
 
 ## Stack
 
@@ -71,12 +71,25 @@ npm run build
 ```txt
 DATABASE_URL
 NEXT_PUBLIC_APP_URL
+ADMIN_APP_HOSTNAMES
 AUTH_SECRET
 AUTH_GITHUB_ID
 AUTH_GITHUB_SECRET
 ```
 
-Only `DATABASE_URL` and `NEXT_PUBLIC_APP_URL` are needed for the current build. Auth variables are placeholders for the later role-based access milestone.
+Only `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, and `ADMIN_APP_HOSTNAMES` matter for the current split-domain setup. Auth variables are placeholders for the later role-based access milestone.
+
+To split public and internal traffic:
+
+1. Keep the public creator domain pointed at the default site, for example `creators.vmake.ai`.
+2. Add a second Vercel domain for the same project, for example `admin.vmake.ai`.
+3. Set `ADMIN_APP_HOSTNAMES=admin.vmake.ai`.
+
+Behavior after that configuration:
+
+- Public domains show only the creator submission experience on `/`.
+- `admin.vmake.ai/` rewrites to the internal admin dashboard.
+- `/admin` on non-admin domains redirects back to `/`.
 
 ## Database
 
@@ -105,11 +118,11 @@ Completed:
 - Submission validation tests and implementation
 - Admin review workflow tests and implementation
 - Payout CSV export tests and implementation
+- Creator public submission surface
+- Host-aware admin route split for separate domains
 
 Next:
 
-- Creator mobile submission form
-- Admin dashboard
 - Review and payout UI
 - Authentication and role-based access
 - Vercel production database migration flow
