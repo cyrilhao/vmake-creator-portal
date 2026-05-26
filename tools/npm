@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+set -eu
+
+PROJECT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+export PATH="$PROJECT_DIR/tools/node/bin:$PATH"
+
+exec "$PROJECT_DIR/tools/node/bin/npm" "$@"

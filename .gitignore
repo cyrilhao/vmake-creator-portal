@@ -1,0 +1,10 @@
+.next
+node_modules
+dist
+coverage
+.env
+.env.local
+playwright-report
+test-results
+tools/downloads
+tools/node

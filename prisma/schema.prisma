@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CreatorStatus {
+  active
+  suspended
+  archived
+}
+
+enum SubmissionStatus {
+  draft
+  submitted
+  under_review
+  approved
+  rejected
+  paid
+}
+
+enum Platform {
+  tiktok
+  instagram
+  youtube
+}
+
+enum ContentItemStatus {
+  pending
+  valid
+  invalid
+}
+
+enum RewardRuleStatus {
+  draft
+  active
+  archived
+}
+
+enum AdminRole {
+  admin
+  reviewer
+  finance
+}
+
+enum ReviewAction {
+  reviewed
+  content_validated
+  adjusted
+  approved
+  rejected
+  payout_approved
+  paid
+}
+
+enum PayoutStatus {
+  not_ready
+  approved
+  paid
+  failed
+  cancelled
+}
+
+model Creator {
+  id                  String       @id @default(cuid())
+  name                String
+  email               String       @unique
+  handle              String?
+  referralCode        String?      @unique
+  referredByCreatorId String?
+  status              CreatorStatus @default(active)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  referredBy          Creator?     @relation("CreatorReferrals", fields: [referredByCreatorId], references: [id])
+  referrals           Creator[]    @relation("CreatorReferrals")
+  submissions         Submission[]
+  payouts             Payout[]
+}
+
+model AdminUser {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  role      AdminRole @default(reviewer)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  createdRewardRules RewardRuleVersion[] @relation("RewardRuleCreator")
+  reviews            AdminReviewRecord[]
+  reviewedContent    ContentItem[]
+  approvedPayouts    Payout[] @relation("PayoutApprovedBy")
+  paidPayouts        Payout[] @relation("PayoutPaidBy")
+}
+
+model Submission {
+  id              String           @id @default(cuid())
+  creatorId       String
+  rewardMonth     DateTime
+  status          SubmissionStatus @default(draft)
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  paidAt          DateTime?
+  rejectionReason String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  creator            Creator                   @relation(fields: [creatorId], references: [id])
+  contentItems       ContentItem[]
+  calculationResults RewardCalculationResult[]
+  reviewRecords      AdminReviewRecord[]
+  payout             Payout?
+
+  @@unique([creatorId, rewardMonth])
+  @@index([rewardMonth, status])
+}
+
+model ContentItem {
+  id                    String            @id @default(cuid())
+  submissionId          String
+  platform              Platform
+  url                   String
+  publishedAt           DateTime
+  monthlyViews          Int
+  creatorReportedViews  Int
+  adminVerifiedViews    Int?
+  status                ContentItemStatus @default(pending)
+  invalidReason         String?
+  reviewedByAdminId     String?
+  reviewedAt            DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  submission      Submission @relation(fields: [submissionId], references: [id])
+  reviewedByAdmin AdminUser?  @relation(fields: [reviewedByAdminId], references: [id])
+
+  @@unique([submissionId, url])
+  @@index([platform, status])
+}
+
+model RewardRuleVersion {
+  id              String           @id @default(cuid())
+  name            String
+  version         String
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  status          RewardRuleStatus @default(draft)
+  configJson      Json
+  createdByAdminId String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  createdBy          AdminUser                 @relation("RewardRuleCreator", fields: [createdByAdminId], references: [id])
+  calculationResults RewardCalculationResult[]
+
+  @@unique([name, version])
+  @@index([status, effectiveFrom])
+}
+
+model RewardCalculationResult {
+  id                       String   @id @default(cuid())
+  submissionId             String
+  rewardRuleVersionId      String
+  calculatedAmount         Decimal  @db.Decimal(10, 2)
+  cappedAmount             Decimal? @db.Decimal(10, 2)
+  finalEstimatedAmount     Decimal  @db.Decimal(10, 2)
+  currency                 String   @default("USD")
+  calculationInputJson     Json
+  calculationBreakdownJson Json
+  calculatedAt             DateTime @default(now())
+
+  submission        Submission        @relation(fields: [submissionId], references: [id])
+  rewardRuleVersion RewardRuleVersion @relation(fields: [rewardRuleVersionId], references: [id])
+
+  @@index([submissionId, calculatedAt])
+}
+
+model AdminReviewRecord {
+  id             String        @id @default(cuid())
+  submissionId   String
+  adminId        String
+  action         ReviewAction
+  previousStatus SubmissionStatus?
+  newStatus      SubmissionStatus?
+  previousAmount Decimal?      @db.Decimal(10, 2)
+  newAmount      Decimal?      @db.Decimal(10, 2)
+  reason         String?
+  metadataJson   Json?
+  createdAt      DateTime      @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+  admin      AdminUser  @relation(fields: [adminId], references: [id])
+
+  @@index([submissionId, createdAt])
+  @@index([adminId, createdAt])
+}
+
+model Payout {
+  id                     String       @id @default(cuid())
+  submissionId           String       @unique
+  creatorId              String
+  rewardMonth            DateTime
+  systemCalculatedAmount Decimal      @db.Decimal(10, 2)
+  adminAdjustmentAmount  Decimal      @default(0) @db.Decimal(10, 2)
+  finalConfirmedAmount   Decimal      @db.Decimal(10, 2)
+  currency               String       @default("USD")
+  status                 PayoutStatus @default(not_ready)
+  approvedByAdminId      String?
+  approvedAt             DateTime?
+  paidByAdminId          String?
+  paidAt                 DateTime?
+  paymentReference       String?
+  notes                  String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  submission      Submission @relation(fields: [submissionId], references: [id])
+  creator         Creator    @relation(fields: [creatorId], references: [id])
+  approvedByAdmin AdminUser? @relation("PayoutApprovedBy", fields: [approvedByAdminId], references: [id])
+  paidByAdmin     AdminUser? @relation("PayoutPaidBy", fields: [paidByAdminId], references: [id])
+
+  @@index([rewardMonth, status])
+  @@index([creatorId, rewardMonth])
+}

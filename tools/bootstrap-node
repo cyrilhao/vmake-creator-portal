@@ -1,0 +1,49 @@
+#!/usr/bin/env sh
+set -eu
+
+NODE_VERSION="22.13.0"
+PROJECT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+NODE_DIR="$PROJECT_DIR/tools/node"
+DOWNLOAD_DIR="$PROJECT_DIR/tools/downloads"
+
+if [ -x "$NODE_DIR/bin/npm" ]; then
+  "$NODE_DIR/bin/node" --version
+  "$NODE_DIR/bin/npm" --version
+  exit 0
+fi
+
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+
+case "$OS:$ARCH" in
+  Darwin:arm64)
+    PLATFORM="darwin-arm64"
+    ;;
+  Darwin:x86_64)
+    PLATFORM="darwin-x64"
+    ;;
+  Linux:x86_64)
+    PLATFORM="linux-x64"
+    ;;
+  Linux:aarch64 | Linux:arm64)
+    PLATFORM="linux-arm64"
+    ;;
+  *)
+    echo "Unsupported platform: $OS $ARCH" >&2
+    exit 1
+    ;;
+esac
+
+mkdir -p "$DOWNLOAD_DIR" "$NODE_DIR"
+
+ARCHIVE="node-v$NODE_VERSION-$PLATFORM.tar.gz"
+URL="https://nodejs.org/dist/v$NODE_VERSION/$ARCHIVE"
+TARGET="$DOWNLOAD_DIR/$ARCHIVE"
+
+echo "Downloading $URL"
+curl -L -o "$TARGET" "$URL"
+
+tar -xzf "$TARGET" -C "$NODE_DIR" --strip-components 1
+
+"$NODE_DIR/bin/node" --version
+"$NODE_DIR/bin/npm" --version
