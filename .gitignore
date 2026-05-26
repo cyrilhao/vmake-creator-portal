@@ -10,3 +10,4 @@ tools/downloads
 tools/node
 tools/gh
 .vercel
+.env*

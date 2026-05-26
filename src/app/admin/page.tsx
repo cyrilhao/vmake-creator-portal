@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { isAdminHostname, parseHostnameList } from "@/lib/access/hostAccess";
+import { listAdminSubmissions } from "@/lib/server/submissionService";
 
 export default async function AdminPage() {
   const headerStore = await headers();
@@ -12,5 +13,7 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  return <AdminDashboard />;
+  const submissions = await listAdminSubmissions();
+
+  return <AdminDashboard submissions={submissions} />;
 }

@@ -1,10 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { calculateSubmissionReward } from "@/lib/rewards/calculateReward";
-import { vmakeCreatorProgramRulesV1 } from "@/lib/rewards/vmakeRules";
 import { parseBulkContentInput } from "@/lib/submissions/parseBulkContent";
-import { summarizeBulkContent } from "@/lib/submissions/parseBulkContent";
 import type { SubmissionValidationIssue } from "@/lib/submissions/submissionTypes";
 import type { CreatorSubmissionDraft } from "@/lib/submissions/submissionTypes";
 import { validateCreatorSubmission } from "@/lib/submissions/validateSubmission";
@@ -12,9 +9,7 @@ import { validateCreatorSubmission } from "@/lib/submissions/validateSubmission"
 type SubmittedPreview = {
   submittedAt: string;
   referralCount: number;
-  internalEstimatedAmount: number;
-  internalContentCount: number;
-  internalPlatformCounts: Record<string, number>;
+  contentCount: number;
 };
 
 const currentRewardMonth = "2026-05";
@@ -26,6 +21,7 @@ export function CreatorSubmissionForm() {
   const [issues, setIssues] = useState<SubmissionValidationIssue[]>([]);
   const [bulkParseMessages, setBulkParseMessages] = useState<string[]>([]);
   const [submittedPreview, setSubmittedPreview] = useState<SubmittedPreview | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const referralDiscordUsernames = useMemo(
     () =>
@@ -38,7 +34,7 @@ export function CreatorSubmissionForm() {
 
   const issueSummary = useMemo(() => summarizeIssues(issues), [issues]);
 
-  function submitCreatorContent(event: FormEvent<HTMLFormElement>) {
+  async function submitCreatorContent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = parseBulkContentInput(bulkInput, currentRewardMonth);
 
@@ -50,8 +46,6 @@ export function CreatorSubmissionForm() {
     }
 
     const totalViews = Number(totalMonthlyViews);
-    const summary = summarizeBulkContent(parsed.rows);
-
     const draft: CreatorSubmissionDraft = {
       creatorId,
       rewardMonth: currentRewardMonth,
@@ -83,42 +77,45 @@ export function CreatorSubmissionForm() {
       return;
     }
 
-    const rewardResult = calculateSubmissionReward(
-      {
-        creatorId: draft.creatorId,
-        submissionId: `local-${Date.now()}`,
-        status: "submitted",
-        hasPreviousValidPost: false,
-        totalViewsOverride: totalViews,
-        contentItems: draft.contentItems.map((contentItem) => ({
-          id: contentItem.id ?? `content-${crypto.randomUUID()}`,
-          platform: contentItem.platform,
-          url: contentItem.url,
-          monthlyViews: contentItem.monthlyViews,
-          status: "valid",
-        })),
-        referrals: referralDiscordUsernames.map((username) => ({
-          id: username,
-          discordUsername: username,
-          status: "pending",
-        })),
-      },
-      vmakeCreatorProgramRulesV1,
-    );
+    try {
+      setIsSubmitting(true);
 
-    setIssues([]);
-    setSubmittedPreview({
-      submittedAt: new Date().toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      referralCount: referralDiscordUsernames.length,
-      internalEstimatedAmount: rewardResult.estimatedAmount,
-      internalContentCount: summary.contentCount,
-      internalPlatformCounts: summary.platformContentCounts,
-    });
+      const response = await fetch("/api/submissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          creatorId: draft.creatorId,
+          rewardMonth: currentRewardMonth,
+          bulkInput,
+          totalMonthlyViews: totalViews,
+          referralDiscordUsernames,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setIssues(payload.issues ?? []);
+        setSubmittedPreview(null);
+        return;
+      }
+
+      setIssues([]);
+      setSubmittedPreview({
+        submittedAt: new Date(payload.submittedAt ?? Date.now()).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        referralCount: Number(payload.referralCount ?? referralDiscordUsernames.length),
+        contentCount: Number(payload.contentCount ?? 0),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -217,8 +214,9 @@ export function CreatorSubmissionForm() {
         <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-4">
           <p className="text-sm font-semibold text-emerald-100">Submission received</p>
           <p className="mt-2 text-sm text-slate-300">
-            Your content links and monthly views were submitted at {submittedPreview.submittedAt}.
-            {" "}
+            Your {submittedPreview.contentCount} content link
+            {submittedPreview.contentCount === 1 ? "" : "s"} and monthly views were submitted at{" "}
+            {submittedPreview.submittedAt}.{" "}
             {submittedPreview.referralCount} referral
             {submittedPreview.referralCount === 1 ? "" : "s"} submitted at{" "}
             the same time. Your final reward will be confirmed after admin review.
@@ -228,9 +226,10 @@ export function CreatorSubmissionForm() {
 
       <button
         className="w-full rounded-xl bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-200"
+        disabled={isSubmitting}
         type="submit"
       >
-        Submit for review
+        {isSubmitting ? "Submitting..." : "Submit for review"}
       </button>
     </form>
   );

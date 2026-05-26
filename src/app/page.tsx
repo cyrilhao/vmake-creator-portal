@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { CreatorSubmissionForm } from "@/components/creator/CreatorSubmissionForm";
 import { isAdminHostname, parseHostnameList } from "@/lib/access/hostAccess";
+import { listAdminSubmissions } from "@/lib/server/submissionService";
 
 const supportedPlatforms = ["X", "Instagram", "TikTok", "YouTube", "Pinterest", "Lemon8", "Threads"];
 
@@ -26,7 +27,8 @@ export default async function HomePage() {
   const adminHostnames = parseHostnameList(process.env.ADMIN_APP_HOSTNAMES);
 
   if (isAdminHostname(hostname, adminHostnames)) {
-    return <AdminDashboard />;
+    const submissions = await listAdminSubmissions();
+    return <AdminDashboard submissions={submissions} />;
   }
 
   return (
