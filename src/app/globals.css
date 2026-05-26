@@ -9,3 +9,22 @@
 body {
   margin: 0;
 }
+
+.creator-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.04);
+  padding: 0.75rem;
+  color: white;
+  outline: none;
+}
+
+.creator-input:focus {
+  border-color: rgb(103 232 249 / 0.65);
+  box-shadow: 0 0 0 3px rgb(103 232 249 / 0.12);
+}
+
+.creator-input::placeholder {
+  color: rgb(148 163 184);
+}

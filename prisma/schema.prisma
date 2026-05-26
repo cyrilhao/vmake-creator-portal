@@ -23,9 +23,13 @@ enum SubmissionStatus {
 }
 
 enum Platform {
+  x
   tiktok
   instagram
   youtube
+  pinterest
+  lemon8
+  threads
 }
 
 enum ContentItemStatus {

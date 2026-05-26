@@ -8,6 +8,7 @@ const draft = (
   creatorId: overrides.creatorId ?? "creator-1",
   rewardMonth: overrides.rewardMonth ?? "2026-05",
   status: overrides.status ?? "draft",
+  referralDiscordUsernames: overrides.referralDiscordUsernames,
   contentItems: overrides.contentItems ?? [
     {
       platform: "tiktok",
@@ -145,6 +146,64 @@ describe("validateCreatorSubmission", () => {
     expect(result.issues).toContainEqual({
       field: "contentItems[0].url",
       message: "Content URL does not match the selected platform.",
+    });
+  });
+
+  it.each([
+    ["x", "https://x.com/vmake/status/123"],
+    ["x", "https://twitter.com/vmake/status/123"],
+    ["instagram", "https://www.instagram.com/reel/abc"],
+    ["tiktok", "https://www.tiktok.com/@vmake/video/1"],
+    ["youtube", "https://youtu.be/abc"],
+    ["pinterest", "https://www.pinterest.com/pin/123"],
+    ["pinterest", "https://pin.it/abc"],
+    ["lemon8", "https://www.lemon8-app.com/post/123"],
+    ["threads", "https://www.threads.net/@vmake/post/123"],
+  ] as const)("accepts %s content URLs", (platform, url) => {
+    const result = validateCreatorSubmission(
+      draft({
+        contentItems: [
+          {
+            platform,
+            url,
+            publishedAt: "2026-05-10",
+            monthlyViews: 1000,
+          },
+        ],
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("accepts valid referral Discord usernames", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        referralDiscordUsernames: ["creator.one", "creator_two#1234"],
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects invalid referral Discord usernames", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        referralDiscordUsernames: ["", "not allowed!"],
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContainEqual({
+      field: "referralDiscordUsernames[0]",
+      message: "Referral Discord username is not valid.",
+    });
+    expect(result.issues).toContainEqual({
+      field: "referralDiscordUsernames[1]",
+      message: "Referral Discord username is not valid.",
     });
   });
 });

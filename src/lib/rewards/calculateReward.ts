@@ -7,17 +7,16 @@ import type {
   SubmissionRewardInput,
   SubmissionRewardResult,
 } from "./rewardTypes";
+import { supportedPlatforms } from "./rewardTypes";
 
 export function calculateSubmissionReward(
   input: SubmissionRewardInput,
   rules: RewardRuleConfig,
 ): SubmissionRewardResult {
   const validContent = input.contentItems.filter((item) => item.status === "valid");
-  const platformBreakdown: Record<Platform, number> = {
-    tiktok: 0,
-    instagram: 0,
-    youtube: 0,
-  };
+  const platformBreakdown = Object.fromEntries(
+    supportedPlatforms.map((platform) => [platform, 0]),
+  ) as Record<Platform, number>;
 
   let totalValidViews = 0;
 

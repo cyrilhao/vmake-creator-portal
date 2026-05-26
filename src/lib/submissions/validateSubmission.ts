@@ -13,6 +13,16 @@ const activeSubmissionStatuses = new Set([
   "paid",
 ]);
 
+const platformHosts: Record<string, string[]> = {
+  x: ["x.com", "twitter.com"],
+  instagram: ["instagram.com"],
+  tiktok: ["tiktok.com"],
+  youtube: ["youtube.com", "youtu.be"],
+  pinterest: ["pinterest.com", "pin.it"],
+  lemon8: ["lemon8-app.com", "lemon8.com"],
+  threads: ["threads.net"],
+};
+
 export function validateCreatorSubmission(
   draft: CreatorSubmissionDraft,
   existingSubmissions: ExistingSubmissionSummary[],
@@ -92,6 +102,15 @@ export function validateCreatorSubmission(
     }
   });
 
+  draft.referralDiscordUsernames?.forEach((username, index) => {
+    if (!isValidDiscordUsername(username)) {
+      issues.push({
+        field: `referralDiscordUsernames[${index}]`,
+        message: "Referral Discord username is not valid.",
+      });
+    }
+  });
+
   return {
     valid: issues.length === 0,
     issues,
@@ -138,21 +157,19 @@ function urlMatchesPlatform(platform: string, url: string) {
     return false;
   }
 
-  if (platform === "tiktok") {
-    return hostname === "tiktok.com" || hostname.endsWith(".tiktok.com");
+  const allowedHosts = platformHosts[platform];
+
+  return allowedHosts
+    ? allowedHosts.some((host) => hostname === host || hostname.endsWith(`.${host}`))
+    : false;
+}
+
+function isValidDiscordUsername(username: string) {
+  const trimmedUsername = username.trim();
+
+  if (!trimmedUsername) {
+    return false;
   }
 
-  if (platform === "instagram") {
-    return hostname === "instagram.com" || hostname.endsWith(".instagram.com");
-  }
-
-  if (platform === "youtube") {
-    return (
-      hostname === "youtube.com" ||
-      hostname.endsWith(".youtube.com") ||
-      hostname === "youtu.be"
-    );
-  }
-
-  return false;
+  return /^[a-zA-Z0-9._]{2,32}(#[0-9]{4})?$/.test(trimmedUsername);
 }

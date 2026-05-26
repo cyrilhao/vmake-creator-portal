@@ -5,6 +5,7 @@ export type CreatorSubmissionDraft = {
   rewardMonth: string;
   status: SubmissionStatus;
   contentItems: CreatorContentDraft[];
+  referralDiscordUsernames?: string[];
 };
 
 export type CreatorContentDraft = {

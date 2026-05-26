@@ -1,4 +1,14 @@
-export type Platform = "tiktok" | "instagram" | "youtube";
+export const supportedPlatforms = [
+  "x",
+  "instagram",
+  "tiktok",
+  "youtube",
+  "pinterest",
+  "lemon8",
+  "threads",
+] as const;
+
+export type Platform = (typeof supportedPlatforms)[number];
 
 export type ContentStatus = "pending" | "valid" | "invalid";
 
@@ -29,6 +39,7 @@ export type ContentItemInput = {
 
 export type ReferralInput = {
   id: string;
+  discordUsername?: string;
   status: "pending" | "valid" | "invalid";
 };
 

@@ -1,3 +1,5 @@
+import { CreatorSubmissionForm } from "@/components/creator/CreatorSubmissionForm";
+
 const submissions = [
   {
     creator: "Mia Chen",
@@ -280,28 +282,17 @@ export default function HomePage() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
-              <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
+              <div
+                className="rounded-lg border border-white/10 bg-white/[0.04] p-5"
+                id="creator-submit"
+              >
                 <h3 className="text-lg font-semibold">Creator submission</h3>
-                <p className="mt-1 text-sm text-slate-400">Mobile-friendly monthly entry</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Submit current-month content and referrals for review.
+                </p>
 
-                <div className="mt-5 rounded-lg border border-white/10 bg-[#0b1020] p-4">
-                  <label className="text-sm font-medium text-slate-300">Reward month</label>
-                  <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-3 text-sm">
-                    May 2026
-                  </div>
-
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <Field label="Platform" value="TikTok" />
-                    <Field label="Monthly views" value="64,220" />
-                  </div>
-
-                  <div className="mt-4">
-                    <Field label="Content URL" value="https://www.tiktok.com/@mia/video/721" />
-                  </div>
-
-                  <div className="mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/10 p-3 text-sm text-cyan-100">
-                    Estimated reward updates after valid content is reviewed.
-                  </div>
+                <div className="mt-5">
+                  <CreatorSubmissionForm />
                 </div>
               </div>
 
@@ -353,17 +344,6 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-slate-400">{label}</p>
       <p className="mt-2 text-xl font-bold">{value}</p>
     </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium text-slate-300">{label}</span>
-      <span className="mt-2 block rounded-lg border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-white">
-        {value}
-      </span>
-    </label>
   );
 }
 

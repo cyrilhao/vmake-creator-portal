@@ -167,12 +167,38 @@ describe("calculateSubmissionReward", () => {
     );
 
     expect(result.totalValidViews).toBe(10000);
-    expect(result.platformBreakdown).toEqual({
-      tiktok: 1000,
-      instagram: 2000,
-      youtube: 7000,
-    });
+    expect(result.platformBreakdown.tiktok).toBe(1000);
+    expect(result.platformBreakdown.instagram).toBe(2000);
+    expect(result.platformBreakdown.youtube).toBe(7000);
     expect(result.estimatedAmount).toBe(40);
+  });
+
+  it("aggregates valid views across every supported creator platform", () => {
+    const result = calculateSubmissionReward(
+      submissionInput({
+        contentItems: [
+          validContent({ id: "x", platform: "x", monthlyViews: 1000 }),
+          validContent({ id: "ig", platform: "instagram", monthlyViews: 1000 }),
+          validContent({ id: "tt", platform: "tiktok", monthlyViews: 1000 }),
+          validContent({ id: "yt", platform: "youtube", monthlyViews: 1000 }),
+          validContent({ id: "pin", platform: "pinterest", monthlyViews: 1000 }),
+          validContent({ id: "l8", platform: "lemon8", monthlyViews: 1000 }),
+          validContent({ id: "th", platform: "threads", monthlyViews: 1000 }),
+        ],
+      }),
+      vmakeCreatorProgramRulesV1,
+    );
+
+    expect(result.totalValidViews).toBe(7000);
+    expect(result.platformBreakdown).toMatchObject({
+      x: 1000,
+      instagram: 1000,
+      tiktok: 1000,
+      youtube: 1000,
+      pinterest: 1000,
+      lemon8: 1000,
+      threads: 1000,
+    });
   });
 
   it("applies US$30 per valid referral only", () => {
