@@ -9,6 +9,7 @@ import type {
   SubmissionValidationIssue,
 } from "@/lib/submissions/submissionTypes";
 import { validateCreatorSubmission } from "@/lib/submissions/validateSubmission";
+import { verifySubmissionContentItems } from "@/lib/verification/contentVerification";
 
 export type CreatorSubmissionPayload = {
   creatorId: string;
@@ -75,6 +76,16 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
   }
 
   const creator = await upsertCreator(input.creatorId);
+  const verificationResults = await verifySubmissionContentItems(
+    parsed.rows.map((row) => ({
+      platform: row.platform,
+      url: row.url,
+    })),
+    {
+      youtubeApiKey: process.env.YOUTUBE_API_KEY,
+      xBearerToken: process.env.X_BEARER_TOKEN,
+    },
+  );
   const hasPreviousValidPost = await prisma.submission.count({
     where: {
       creatorId: creator.id,
@@ -118,14 +129,26 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
       status: "submitted",
       submittedAt: new Date(),
       contentItems: {
-        create: parsed.rows.map((row) => ({
-          platform: row.platform,
-          url: row.url,
-          publishedAt: new Date(`${row.publishedAt}T00:00:00.000Z`),
-          monthlyViews: 0,
-          creatorReportedViews: 0,
-          status: "pending",
-        })),
+        create: parsed.rows.map((row, index) => {
+          const verification = verificationResults[index];
+
+          return {
+            platform: row.platform,
+            url: row.url,
+            externalContentId: verification?.externalContentId ?? null,
+            publishedAt: new Date(`${row.publishedAt}T00:00:00.000Z`),
+            monthlyViews: 0,
+            creatorReportedViews: 0,
+            autoVerifiedViews: verification?.verifiedViews ?? null,
+            verificationStatus: verification?.status ?? "pending",
+            verificationSource: verification?.source ?? null,
+            verificationError: verification?.error ?? null,
+            verificationCheckedAt: verification?.checkedAt
+              ? new Date(verification.checkedAt)
+              : null,
+            status: "pending",
+          };
+        }),
       },
       referrals: {
         create: (input.referralDiscordUsernames ?? []).map((discordUsername) => ({
@@ -253,6 +276,11 @@ export async function listAdminSubmissions() {
           id: item.id,
           platform: platformLabel(item.platform),
           url: item.url,
+          autoVerifiedViews: item.autoVerifiedViews,
+          adminVerifiedViews: item.adminVerifiedViews,
+          verificationStatus: item.verificationStatus,
+          verificationSource: item.verificationSource,
+          verificationError: item.verificationError,
           status: item.status,
           publishedAt: item.publishedAt.toISOString(),
         })),

@@ -19,6 +19,11 @@ type AdminSubmissionListItem = {
     id: string;
     platform: string;
     url: string;
+    autoVerifiedViews: null | number;
+    adminVerifiedViews: null | number;
+    verificationStatus: string;
+    verificationSource: null | string;
+    verificationError: null | string;
     status: string;
     publishedAt: string;
   }>;
@@ -251,8 +256,42 @@ export function AdminDashboard({
                                   >
                                     {item.url}
                                   </a>
+                                  <div className="mt-2 grid gap-2 text-xs text-slate-400 sm:grid-cols-3">
+                                    <span>
+                                      Verified:{" "}
+                                      <strong className="text-slate-200">
+                                        {item.autoVerifiedViews === null
+                                          ? "-"
+                                          : formatViews(item.autoVerifiedViews)}
+                                      </strong>
+                                    </span>
+                                    <span>
+                                      Admin final:{" "}
+                                      <strong className="text-slate-200">
+                                        {item.adminVerifiedViews === null
+                                          ? "-"
+                                          : formatViews(item.adminVerifiedViews)}
+                                      </strong>
+                                    </span>
+                                    <span>
+                                      Source:{" "}
+                                      <strong className="text-slate-200">
+                                        {item.verificationSource
+                                          ? humanizeStatus(item.verificationSource)
+                                          : "Pending"}
+                                      </strong>
+                                    </span>
+                                  </div>
+                                  {item.verificationError ? (
+                                    <p className="mt-2 text-xs text-amber-200">
+                                      {item.verificationError}
+                                    </p>
+                                  ) : null}
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
+                                  <span className={verificationStatusClass(item.verificationStatus)}>
+                                    {humanizeStatus(item.verificationStatus)}
+                                  </span>
                                   <span className={contentStatusClass(item.status)}>
                                     {humanizeStatus(item.status)}
                                   </span>
@@ -437,6 +476,22 @@ function contentStatusClass(status: string) {
 
   if (status === "invalid") {
     return "rounded-full bg-amber-300/15 px-2.5 py-1 text-xs font-semibold text-amber-200";
+  }
+
+  return "rounded-full bg-slate-300/10 px-2.5 py-1 text-xs font-semibold text-slate-300";
+}
+
+function verificationStatusClass(status: string) {
+  if (status === "verified") {
+    return "rounded-full bg-emerald-300/15 px-2.5 py-1 text-xs font-semibold text-emerald-200";
+  }
+
+  if (status === "unavailable") {
+    return "rounded-full bg-amber-300/15 px-2.5 py-1 text-xs font-semibold text-amber-200";
+  }
+
+  if (status === "failed") {
+    return "rounded-full bg-red-300/15 px-2.5 py-1 text-xs font-semibold text-red-100";
   }
 
   return "rounded-full bg-slate-300/10 px-2.5 py-1 text-xs font-semibold text-slate-300";

@@ -39,6 +39,20 @@ enum ContentItemStatus {
   invalid
 }
 
+enum ContentVerificationStatus {
+  pending
+  verified
+  unavailable
+  failed
+}
+
+enum ContentVerificationSource {
+  youtube_api
+  x_api
+  creator_screenshot
+  admin_review
+}
+
 enum ReferralStatus {
   pending
   valid
@@ -140,10 +154,16 @@ model ContentItem {
   submissionId          String
   platform              Platform
   url                   String
+  externalContentId     String?
   publishedAt           DateTime
   monthlyViews          Int
   creatorReportedViews  Int
+  autoVerifiedViews     Int?
   adminVerifiedViews    Int?
+  verificationStatus    ContentVerificationStatus @default(pending)
+  verificationSource    ContentVerificationSource?
+  verificationError     String?
+  verificationCheckedAt DateTime?
   status                ContentItemStatus @default(pending)
   invalidReason         String?
   reviewedByAdminId     String?
