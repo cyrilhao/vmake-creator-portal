@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import type { AdminSubmissionListItem } from "@/lib/admin/adminTypes";
 import { prisma } from "@/lib/prisma";
 import type { Platform } from "@/lib/rewards/rewardTypes";
 import { calculateSubmissionReward } from "@/lib/rewards/calculateReward";
@@ -209,7 +210,7 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
   };
 }
 
-export async function listAdminSubmissions() {
+export async function listAdminSubmissions(): Promise<AdminSubmissionListItem[]> {
   try {
     const submissions = await prisma.submission.findMany({
       orderBy: [
@@ -257,6 +258,7 @@ export async function listAdminSubmissions() {
         creatorName: submission.creator.name,
         creatorHandle:
           submission.creator.handle ?? `@${submission.creator.externalCreatorId}`,
+        creatorEmail: submission.creator.email,
         monthLabel: formatRewardMonth(submission.rewardMonth),
         rewardMonthKey: toRewardMonthKey(submission.rewardMonth),
         status: submission.status,

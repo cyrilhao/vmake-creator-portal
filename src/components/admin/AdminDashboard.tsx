@@ -1,51 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
-type AdminSubmissionListItem = {
-  id: string;
-  creatorName: string;
-  creatorHandle: string;
-  monthLabel: string;
-  status: string;
-  posts: number;
-  totalViews: number;
-  platforms: string[];
-  systemEstimatedAmount: number;
-  finalConfirmedAmount: null | number;
-  currency: string;
-  submittedAt: string;
-  contentItems: Array<{
-    id: string;
-    platform: string;
-    url: string;
-    autoVerifiedViews: null | number;
-    adminVerifiedViews: null | number;
-    verificationStatus: string;
-    verificationSource: null | string;
-    verificationError: null | string;
-    status: string;
-    publishedAt: string;
-  }>;
-  referrals: Array<{
-    id: string;
-    discordUsername: string;
-    status: string;
-  }>;
-  platformProofs: Array<{
-    id: string;
-    platform: string;
-    url: string;
-    filename: string;
-  }>;
-  platformContentCounts: Record<string, unknown>;
-  rewardBreakdown: Array<{
-    type?: string;
-    label?: string;
-    amount?: number;
-  }>;
-  rewardInput: Record<string, unknown>;
-};
+import type { AdminSubmissionListItem, PayoutWorkbookRow } from "@/lib/admin/adminTypes";
 
 type CreatorSummary = {
   id: string;
@@ -65,8 +21,10 @@ type CreatorSummary = {
 
 export function AdminDashboard({
   submissions,
+  payoutRows,
 }: {
   submissions: AdminSubmissionListItem[];
+  payoutRows: PayoutWorkbookRow[];
 }) {
   const creatorSummaries = useMemo(() => buildCreatorSummaries(submissions), [submissions]);
   const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(
@@ -362,6 +320,72 @@ export function AdminDashboard({
                 No creator selected yet.
               </div>
             )}
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-lg border border-white/10 bg-white/[0.04]">
+          <div className="flex flex-col gap-3 border-b border-white/10 px-4 py-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Payout worksheet</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Same column structure as the finance workbook you shared.
+              </p>
+            </div>
+            <a
+              className="inline-flex rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-200"
+              href="/api/admin/payout-workbook"
+            >
+              Download Excel
+            </a>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-[1200px] w-full border-collapse text-left text-sm">
+              <thead className="bg-[#0b1020] text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  {[
+                    "ID",
+                    "Total Views",
+                    "Corresponding Reward",
+                    "Referral",
+                    "Corresponding Reward",
+                    "Post Count",
+                    "Corresponding Reward",
+                    "View Ranking",
+                    "Corresponding Reward",
+                    "Newbie bonus",
+                    "应付金额 (美元)",
+                    "PayPal",
+                    "Name",
+                  ].map((heading, index) => (
+                    <th className="px-4 py-3 font-semibold" key={`${heading}-${index}`}>
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {payoutRows.map((row) => (
+                  <tr className="border-t border-white/10" key={`${row.rewardMonth}-${row.creatorId}`}>
+                    <td className="px-4 py-3 text-white">{row.creatorId}</td>
+                    <td className="px-4 py-3 text-white">{row.totalViews}</td>
+                    <td className="px-4 py-3 text-cyan-200">{formatMoney(row.totalViewsReward)}</td>
+                    <td className="px-4 py-3 text-white">{row.referralCount}</td>
+                    <td className="px-4 py-3 text-cyan-200">{formatMoney(row.referralReward)}</td>
+                    <td className="px-4 py-3 text-white">{row.postCount}</td>
+                    <td className="px-4 py-3 text-cyan-200">{formatMoney(row.postCountReward)}</td>
+                    <td className="px-4 py-3 text-white">{row.viewRanking ?? "-"}</td>
+                    <td className="px-4 py-3 text-cyan-200">{formatMoney(row.viewRankingReward)}</td>
+                    <td className="px-4 py-3 text-cyan-200">{formatMoney(row.newbieBonus)}</td>
+                    <td className="px-4 py-3 font-semibold text-emerald-200">
+                      {formatMoney(row.payableAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-300">{row.paypal}</td>
+                    <td className="px-4 py-3 text-slate-300">{row.creatorName}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>

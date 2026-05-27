@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { CreatorSubmissionForm } from "@/components/creator/CreatorSubmissionForm";
 import { isAdminHostname, parseHostnameList } from "@/lib/access/hostAccess";
+import { buildPayoutWorkbookRows } from "@/lib/export/buildPayoutWorkbookRows";
 import { listAdminSubmissions } from "@/lib/server/submissionService";
 
 const supportedPlatforms = ["X", "Instagram", "TikTok", "YouTube", "Pinterest", "Lemon8", "Threads"];
@@ -28,7 +29,8 @@ export default async function HomePage() {
 
   if (isAdminHostname(hostname, adminHostnames)) {
     const submissions = await listAdminSubmissions();
-    return <AdminDashboard submissions={submissions} />;
+    const payoutRows = buildPayoutWorkbookRows(submissions);
+    return <AdminDashboard submissions={submissions} payoutRows={payoutRows} />;
   }
 
   return (
