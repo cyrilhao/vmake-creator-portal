@@ -63,6 +63,20 @@ export function AdminDashboard({
               />
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a
+              className="inline-flex rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-200"
+              href="/api/admin/payout-workbook"
+            >
+              Download Excel
+            </a>
+            <a
+              className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/[0.05]"
+              href="#payout-worksheet"
+            >
+              Jump to payout worksheet
+            </a>
+          </div>
         </header>
 
         <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(340px,0.95fr)_minmax(0,1.35fr)]">
@@ -323,7 +337,7 @@ export function AdminDashboard({
           </div>
         </section>
 
-        <section className="mt-6 rounded-lg border border-white/10 bg-white/[0.04]">
+        <section className="mt-6 rounded-lg border border-white/10 bg-white/[0.04]" id="payout-worksheet">
           <div className="flex flex-col gap-3 border-b border-white/10 px-4 py-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-lg font-semibold">Payout worksheet</h2>
