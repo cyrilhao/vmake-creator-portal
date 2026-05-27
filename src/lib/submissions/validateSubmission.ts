@@ -43,6 +43,20 @@ export function validateCreatorSubmission(
     });
   }
 
+  if (!draft.creatorFullName.trim()) {
+    issues.push({
+      field: "creatorFullName",
+      message: "Full name is required.",
+    });
+  }
+
+  if (!isValidEmail(draft.paypalEmail)) {
+    issues.push({
+      field: "paypalEmail",
+      message: "PayPal email must be a valid email address.",
+    });
+  }
+
   if (!isRewardMonth(draft.rewardMonth)) {
     issues.push({
       field: "rewardMonth",
@@ -189,6 +203,16 @@ function isValidDiscordUsername(username: string) {
   }
 
   return /^[a-zA-Z0-9._]{2,32}(#[0-9]{4})?$/.test(trimmedUsername);
+}
+
+function isValidEmail(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return false;
+  }
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue);
 }
 
 function platformLabel(platform: string) {

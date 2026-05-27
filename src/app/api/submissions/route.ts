@@ -14,6 +14,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const result = await createSubmissionFromCreatorInput({
       creatorId: String(body.creatorId ?? ""),
+      creatorFullName: String(body.creatorFullName ?? ""),
+      paypalEmail: String(body.paypalEmail ?? ""),
       rewardMonth: String(body.rewardMonth ?? ""),
       bulkInput: String(body.bulkInput ?? ""),
       totalMonthlyViews: Number(body.totalMonthlyViews ?? 0),
@@ -67,6 +69,8 @@ export async function POST(request: Request) {
 async function handleMultipartSubmission(request: Request) {
   const formData = await request.formData();
   const creatorId = String(formData.get("creatorId") ?? "");
+  const creatorFullName = String(formData.get("creatorFullName") ?? "");
+  const paypalEmail = String(formData.get("paypalEmail") ?? "");
   const rewardMonth = String(formData.get("rewardMonth") ?? "");
   const bulkInput = String(formData.get("bulkInput") ?? "");
   const totalMonthlyViews = Number(formData.get("totalMonthlyViews") ?? 0);
@@ -95,6 +99,8 @@ async function handleMultipartSubmission(request: Request) {
 
   const result = await createSubmissionFromCreatorInput({
     creatorId,
+    creatorFullName,
+    paypalEmail,
     rewardMonth,
     bulkInput,
     totalMonthlyViews,

@@ -16,6 +16,8 @@ type SubmittedPreview = {
 const currentRewardMonth = "2026-05";
 export function CreatorSubmissionForm() {
   const [creatorId, setCreatorId] = useState("creator-demo");
+  const [creatorFullName, setCreatorFullName] = useState("");
+  const [paypalEmail, setPaypalEmail] = useState("");
   const [bulkInput, setBulkInput] = useState("");
   const [totalMonthlyViews, setTotalMonthlyViews] = useState("");
   const [referralText, setReferralText] = useState("");
@@ -61,6 +63,8 @@ export function CreatorSubmissionForm() {
     const totalViews = Number(totalMonthlyViews);
     const draft: CreatorSubmissionDraft = {
       creatorId,
+      creatorFullName,
+      paypalEmail,
       rewardMonth: currentRewardMonth,
       status: "submitted",
       referralDiscordUsernames,
@@ -110,6 +114,8 @@ export function CreatorSubmissionForm() {
 
       const formData = new FormData();
       formData.set("creatorId", draft.creatorId);
+      formData.set("creatorFullName", draft.creatorFullName);
+      formData.set("paypalEmail", draft.paypalEmail);
       formData.set("rewardMonth", currentRewardMonth);
       formData.set("bulkInput", bulkInput);
       formData.set("totalMonthlyViews", String(totalViews));
@@ -160,6 +166,25 @@ export function CreatorSubmissionForm() {
             className="creator-input"
             onChange={(event) => setCreatorId(event.target.value)}
             value={creatorId}
+          />
+        </FieldShell>
+
+        <FieldShell label="Full name">
+          <input
+            className="creator-input"
+            onChange={(event) => setCreatorFullName(event.target.value)}
+            placeholder="Your full legal name"
+            value={creatorFullName}
+          />
+        </FieldShell>
+
+        <FieldShell label="PayPal account">
+          <input
+            className="creator-input"
+            onChange={(event) => setPaypalEmail(event.target.value)}
+            placeholder="paypal@example.com"
+            type="email"
+            value={paypalEmail}
           />
         </FieldShell>
 

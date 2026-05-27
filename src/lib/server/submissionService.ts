@@ -14,6 +14,8 @@ import { verifySubmissionContentItems } from "@/lib/verification/contentVerifica
 
 export type CreatorSubmissionPayload = {
   creatorId: string;
+  creatorFullName: string;
+  paypalEmail: string;
   rewardMonth: string;
   bulkInput: string;
   totalMonthlyViews: number;
@@ -53,6 +55,8 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
   const existingSubmissions = await loadExistingSubmissionSummaries(input.creatorId);
   const draft = {
     creatorId: input.creatorId,
+    creatorFullName: input.creatorFullName,
+    paypalEmail: input.paypalEmail,
     rewardMonth: input.rewardMonth,
     status: "submitted" as const,
     referralDiscordUsernames: input.referralDiscordUsernames,
@@ -76,7 +80,11 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
     };
   }
 
-  const creator = await upsertCreator(input.creatorId);
+  const creator = await upsertCreator({
+    externalCreatorId: input.creatorId,
+    fullName: input.creatorFullName,
+    paypalEmail: input.paypalEmail,
+  });
   const verificationResults = await verifySubmissionContentItems(
     parsed.rows.map((row) => ({
       platform: row.platform,
@@ -337,20 +345,29 @@ async function loadExistingSubmissionSummaries(
   }));
 }
 
-async function upsertCreator(externalCreatorId: string) {
+async function upsertCreator({
+  externalCreatorId,
+  fullName,
+  paypalEmail,
+}: {
+  externalCreatorId: string;
+  fullName: string;
+  paypalEmail: string;
+}) {
   return prisma.creator.upsert({
     where: {
       externalCreatorId,
     },
     update: {
       handle: externalCreatorId,
-      name: externalCreatorId,
+      name: fullName,
+      email: paypalEmail,
     },
     create: {
       externalCreatorId,
       handle: externalCreatorId,
-      name: externalCreatorId,
-      email: `${sanitizeExternalId(externalCreatorId)}@creator.local`,
+      name: fullName,
+      email: paypalEmail,
     },
   });
 }

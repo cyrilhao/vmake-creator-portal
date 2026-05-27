@@ -6,6 +6,8 @@ const draft = (
   overrides: Partial<CreatorSubmissionDraft> = {},
 ): CreatorSubmissionDraft => ({
   creatorId: overrides.creatorId ?? "creator-1",
+  creatorFullName: overrides.creatorFullName ?? "Jane Creator",
+  paypalEmail: overrides.paypalEmail ?? "jane@example.com",
   rewardMonth: overrides.rewardMonth ?? "2026-05",
   status: overrides.status ?? "draft",
   referralDiscordUsernames: overrides.referralDiscordUsernames,
@@ -118,6 +120,36 @@ describe("validateCreatorSubmission", () => {
     expect(result.issues).toContainEqual({
       field: "rewardMonth",
       message: "Creator already has a submission for this reward month.",
+    });
+  });
+
+  it("requires a full name", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        creatorFullName: "",
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContainEqual({
+      field: "creatorFullName",
+      message: "Full name is required.",
+    });
+  });
+
+  it("requires a valid PayPal email", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        paypalEmail: "not-an-email",
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContainEqual({
+      field: "paypalEmail",
+      message: "PayPal email must be a valid email address.",
     });
   });
 

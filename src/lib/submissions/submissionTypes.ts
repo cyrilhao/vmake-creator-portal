@@ -2,6 +2,8 @@ import type { ContentStatus, Platform, SubmissionStatus } from "@/lib/rewards/re
 
 export type CreatorSubmissionDraft = {
   creatorId: string;
+  creatorFullName: string;
+  paypalEmail: string;
   rewardMonth: string;
   status: SubmissionStatus;
   contentItems: CreatorContentDraft[];
