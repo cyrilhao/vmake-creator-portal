@@ -6,6 +6,7 @@ export type CreatorSubmissionDraft = {
   status: SubmissionStatus;
   contentItems: CreatorContentDraft[];
   referralDiscordUsernames?: string[];
+  platformProofs?: CreatorPlatformProofDraft[];
 };
 
 export type CreatorContentDraft = {
@@ -15,6 +16,12 @@ export type CreatorContentDraft = {
   publishedAt: string;
   monthlyViews: number;
   status?: ContentStatus;
+};
+
+export type CreatorPlatformProofDraft = {
+  platform: Platform;
+  blobUrl: string;
+  filename: string;
 };
 
 export type ExistingSubmissionSummary = {

@@ -9,6 +9,13 @@ const draft = (
   rewardMonth: overrides.rewardMonth ?? "2026-05",
   status: overrides.status ?? "draft",
   referralDiscordUsernames: overrides.referralDiscordUsernames,
+  platformProofs: overrides.platformProofs ?? [
+    {
+      platform: "tiktok",
+      blobUrl: "https://blob.example/tiktok-proof.png",
+      filename: "tiktok-proof.png",
+    },
+  ],
   contentItems: overrides.contentItems ?? [
     {
       platform: "tiktok",
@@ -25,6 +32,77 @@ describe("validateCreatorSubmission", () => {
 
     expect(result.valid).toBe(true);
     expect(result.issues).toEqual([]);
+  });
+
+  it("requires a platform analytics screenshot for each used platform", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        contentItems: [
+          {
+            platform: "tiktok",
+            url: "https://www.tiktok.com/@vmake/video/1",
+            publishedAt: "2026-05-10",
+            monthlyViews: 1000,
+          },
+          {
+            platform: "instagram",
+            url: "https://www.instagram.com/reel/abc",
+            publishedAt: "2026-05-11",
+            monthlyViews: 1000,
+          },
+        ],
+        platformProofs: [
+          {
+            platform: "tiktok",
+            blobUrl: "https://blob.example/tiktok-proof.png",
+            filename: "tiktok-proof.png",
+          },
+        ],
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContainEqual({
+      field: "platformProofs.instagram",
+      message: "Upload an analytics screenshot for Instagram content.",
+    });
+  });
+
+  it("accepts submissions when each used platform has a screenshot proof", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        contentItems: [
+          {
+            platform: "tiktok",
+            url: "https://www.tiktok.com/@vmake/video/1",
+            publishedAt: "2026-05-10",
+            monthlyViews: 1000,
+          },
+          {
+            platform: "instagram",
+            url: "https://www.instagram.com/reel/abc",
+            publishedAt: "2026-05-11",
+            monthlyViews: 1000,
+          },
+        ],
+        platformProofs: [
+          {
+            platform: "tiktok",
+            blobUrl: "https://blob.example/tiktok-proof.png",
+            filename: "tiktok-proof.png",
+          },
+          {
+            platform: "instagram",
+            blobUrl: "https://blob.example/instagram-proof.png",
+            filename: "instagram-proof.png",
+          },
+        ],
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(true);
   });
 
   it("rejects a duplicate submission for the same creator and month", () => {
@@ -162,6 +240,13 @@ describe("validateCreatorSubmission", () => {
   ] as const)("accepts %s content URLs", (platform, url) => {
     const result = validateCreatorSubmission(
       draft({
+        platformProofs: [
+          {
+            platform,
+            blobUrl: `https://blob.example/${platform}-proof.png`,
+            filename: `${platform}-proof.png`,
+          },
+        ],
         contentItems: [
           {
             platform,

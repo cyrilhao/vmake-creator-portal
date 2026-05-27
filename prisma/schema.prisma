@@ -126,6 +126,7 @@ model Submission {
   creator            Creator                   @relation(fields: [creatorId], references: [id])
   contentItems       ContentItem[]
   referrals          SubmissionReferral[]
+  platformProofs     SubmissionPlatformProof[]
   calculationResults RewardCalculationResult[]
   reviewRecords      AdminReviewRecord[]
   payout             Payout?
@@ -168,6 +169,22 @@ model SubmissionReferral {
   submission Submission @relation(fields: [submissionId], references: [id])
 
   @@index([submissionId, status])
+}
+
+model SubmissionPlatformProof {
+  id          String   @id @default(cuid())
+  submissionId String
+  platform    Platform
+  blobUrl     String
+  filename    String
+  contentType String?
+  sizeBytes   Int?
+  createdAt   DateTime @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  @@unique([submissionId, platform])
+  @@index([submissionId])
 }
 
 model RewardRuleVersion {

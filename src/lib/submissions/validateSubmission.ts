@@ -4,6 +4,7 @@ import type {
   SubmissionValidationIssue,
   SubmissionValidationResult,
 } from "./submissionTypes";
+import type { Platform } from "@/lib/rewards/rewardTypes";
 
 const activeSubmissionStatuses = new Set([
   "draft",
@@ -28,6 +29,12 @@ export function validateCreatorSubmission(
   existingSubmissions: ExistingSubmissionSummary[],
 ): SubmissionValidationResult {
   const issues: SubmissionValidationIssue[] = [];
+  const usedPlatforms = new Set<Platform>();
+  const proofPlatforms = new Set<Platform>(
+    (draft.platformProofs ?? [])
+      .filter((proof) => proof.blobUrl.trim() && proof.filename.trim())
+      .map((proof) => proof.platform),
+  );
 
   if (!draft.creatorId.trim()) {
     issues.push({
@@ -61,6 +68,7 @@ export function validateCreatorSubmission(
 
   draft.contentItems.forEach((contentItem, index) => {
     const url = normalizeUrl(contentItem.url);
+    usedPlatforms.add(contentItem.platform);
 
     if (!url) {
       issues.push({
@@ -107,6 +115,15 @@ export function validateCreatorSubmission(
       issues.push({
         field: `referralDiscordUsernames[${index}]`,
         message: "Referral Discord username is not valid.",
+      });
+    }
+  });
+
+  usedPlatforms.forEach((platform) => {
+    if (!proofPlatforms.has(platform)) {
+      issues.push({
+        field: `platformProofs.${platform}`,
+        message: `Upload an analytics screenshot for ${platformLabel(platform)} content.`,
       });
     }
   });
@@ -172,4 +189,20 @@ function isValidDiscordUsername(username: string) {
   }
 
   return /^[a-zA-Z0-9._]{2,32}(#[0-9]{4})?$/.test(trimmedUsername);
+}
+
+function platformLabel(platform: string) {
+  if (platform === "x") {
+    return "X";
+  }
+
+  if (platform === "lemon8") {
+    return "Lemon8";
+  }
+
+  if (platform === "tiktok") {
+    return "TikTok";
+  }
+
+  return platform.charAt(0).toUpperCase() + platform.slice(1);
 }

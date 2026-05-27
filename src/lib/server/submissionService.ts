@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { Platform } from "@/lib/rewards/rewardTypes";
 import { calculateSubmissionReward } from "@/lib/rewards/calculateReward";
 import { vmakeCreatorProgramRulesV1 } from "@/lib/rewards/vmakeRules";
 import { parseBulkContentInput, summarizeBulkContent } from "@/lib/submissions/parseBulkContent";
@@ -15,6 +16,13 @@ export type CreatorSubmissionPayload = {
   bulkInput: string;
   totalMonthlyViews: number;
   referralDiscordUsernames?: string[];
+  platformProofs?: Array<{
+    platform: Platform;
+    blobUrl: string;
+    filename: string;
+    contentType?: string;
+    sizeBytes?: number;
+  }>;
 };
 
 export async function createSubmissionFromCreatorInput(input: CreatorSubmissionPayload) {
@@ -46,6 +54,7 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
     rewardMonth: input.rewardMonth,
     status: "submitted" as const,
     referralDiscordUsernames: input.referralDiscordUsernames,
+    platformProofs: input.platformProofs,
     contentItems: parsed.rows.map((row) => ({
       platform: row.platform,
       url: row.url,
@@ -124,6 +133,15 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
           status: "pending",
         })),
       },
+      platformProofs: {
+        create: (input.platformProofs ?? []).map((proof) => ({
+          platform: proof.platform,
+          blobUrl: proof.blobUrl,
+          filename: proof.filename,
+          contentType: proof.contentType,
+          sizeBytes: proof.sizeBytes,
+        })),
+      },
       calculationResults: {
         create: {
           rewardRuleVersionId: rewardRuleVersion.id,
@@ -149,6 +167,7 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
     include: {
       contentItems: true,
       referrals: true,
+      platformProofs: true,
       calculationResults: {
         orderBy: {
           calculatedAt: "desc",
@@ -182,6 +201,11 @@ export async function listAdminSubmissions() {
           },
         },
         referrals: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+        platformProofs: {
           orderBy: {
             createdAt: "asc",
           },
@@ -236,6 +260,12 @@ export async function listAdminSubmissions() {
           id: referral.id,
           discordUsername: referral.discordUsername,
           status: referral.status,
+        })),
+        platformProofs: submission.platformProofs.map((proof) => ({
+          id: proof.id,
+          platform: platformLabel(proof.platform),
+          url: proof.blobUrl,
+          filename: proof.filename,
         })),
         platformContentCounts,
         rewardBreakdown: asArray(breakdownJson.lineItems),

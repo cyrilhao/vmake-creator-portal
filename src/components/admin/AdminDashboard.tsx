@@ -27,6 +27,12 @@ type AdminSubmissionListItem = {
     discordUsername: string;
     status: string;
   }>;
+  platformProofs: Array<{
+    id: string;
+    platform: string;
+    url: string;
+    filename: string;
+  }>;
   platformContentCounts: Record<string, unknown>;
   rewardBreakdown: Array<{
     type?: string;
@@ -284,6 +290,30 @@ export function AdminDashboard({
                           ? selectedCreator.referrals.join(", ")
                           : "No referrals submitted."}
                       </p>
+                    </div>
+
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-sm font-semibold text-white">Platform proofs</p>
+                      <div className="mt-3 space-y-2">
+                        {selectedCreator.submissions.flatMap((submission) => submission.platformProofs)
+                          .length > 0 ? (
+                          selectedCreator.submissions.flatMap((submission) =>
+                            submission.platformProofs.map((proof) => (
+                              <a
+                                className="block rounded-lg border border-white/10 px-3 py-2 text-sm text-cyan-200 hover:bg-white/[0.04] hover:text-cyan-100"
+                                href={proof.url}
+                                key={proof.id}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                {proof.platform}: {proof.filename}
+                              </a>
+                            )),
+                          )
+                        ) : (
+                          <p className="text-sm text-slate-400">No proof screenshots uploaded.</p>
+                        )}
+                      </div>
                     </div>
                   </aside>
                 </div>

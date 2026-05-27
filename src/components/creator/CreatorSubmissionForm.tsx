@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { parseBulkContentInput } from "@/lib/submissions/parseBulkContent";
+import { supportedPlatforms, type Platform } from "@/lib/rewards/rewardTypes";
+import { parseBulkContentInput, summarizeBulkContent } from "@/lib/submissions/parseBulkContent";
 import type { SubmissionValidationIssue } from "@/lib/submissions/submissionTypes";
 import type { CreatorSubmissionDraft } from "@/lib/submissions/submissionTypes";
 import { validateCreatorSubmission } from "@/lib/submissions/validateSubmission";
@@ -18,6 +19,7 @@ export function CreatorSubmissionForm() {
   const [bulkInput, setBulkInput] = useState("");
   const [totalMonthlyViews, setTotalMonthlyViews] = useState("");
   const [referralText, setReferralText] = useState("");
+  const [platformProofFiles, setPlatformProofFiles] = useState<Partial<Record<Platform, File>>>({});
   const [issues, setIssues] = useState<SubmissionValidationIssue[]>([]);
   const [bulkParseMessages, setBulkParseMessages] = useState<string[]>([]);
   const [submittedPreview, setSubmittedPreview] = useState<SubmittedPreview | null>(null);
@@ -33,10 +35,21 @@ export function CreatorSubmissionForm() {
   );
 
   const issueSummary = useMemo(() => summarizeIssues(issues), [issues]);
+  const parsedPreview = useMemo(
+    () => parseBulkContentInput(bulkInput, currentRewardMonth),
+    [bulkInput],
+  );
+  const requiredPlatforms = useMemo(
+    () =>
+      supportedPlatforms.filter(
+        (platform) => summarizeBulkContent(parsedPreview.rows).platformContentCounts[platform] > 0,
+      ),
+    [parsedPreview.rows],
+  );
 
   async function submitCreatorContent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsed = parseBulkContentInput(bulkInput, currentRewardMonth);
+    const parsed = parsedPreview;
 
     setBulkParseMessages(parsed.issues.map((issue) => `Line ${issue.line}: ${issue.message}`));
 
@@ -51,6 +64,21 @@ export function CreatorSubmissionForm() {
       rewardMonth: currentRewardMonth,
       status: "submitted",
       referralDiscordUsernames,
+      platformProofs: requiredPlatforms
+        .map((platform) => {
+          const file = platformProofFiles[platform];
+
+          if (!file) {
+            return null;
+          }
+
+          return {
+            platform,
+            blobUrl: file.name,
+            filename: file.name,
+          };
+        })
+        .filter(Boolean) as CreatorSubmissionDraft["platformProofs"],
       contentItems: parsed.rows.map((row) => ({
         id: `content-${crypto.randomUUID()}`,
         platform: row.platform,
@@ -80,18 +108,24 @@ export function CreatorSubmissionForm() {
     try {
       setIsSubmitting(true);
 
+      const formData = new FormData();
+      formData.set("creatorId", draft.creatorId);
+      formData.set("rewardMonth", currentRewardMonth);
+      formData.set("bulkInput", bulkInput);
+      formData.set("totalMonthlyViews", String(totalViews));
+      formData.set("referralDiscordUsernames", JSON.stringify(referralDiscordUsernames));
+
+      requiredPlatforms.forEach((platform) => {
+        const file = platformProofFiles[platform];
+
+        if (file) {
+          formData.set(`platformProof.${platform}`, file);
+        }
+      });
+
       const response = await fetch("/api/submissions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          creatorId: draft.creatorId,
-          rewardMonth: currentRewardMonth,
-          bulkInput,
-          totalMonthlyViews: totalViews,
-          referralDiscordUsernames,
-        }),
+        body: formData,
       });
 
       const payload = await response.json();
@@ -167,6 +201,50 @@ export function CreatorSubmissionForm() {
           </div>
         ) : null}
       </section>
+
+      {requiredPlatforms.length > 0 ? (
+        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-sm font-semibold text-white">Platform analytics screenshots</p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">
+            Upload one screenshot per platform used this month. These screenshots are required and
+            only visible to the admin team.
+          </p>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {requiredPlatforms.map((platform) => (
+              <FieldShell key={platform} label={`${platformName(platform)} screenshot`}>
+                <div className="space-y-2">
+                  <input
+                    accept="image/*"
+                    className="creator-input file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-300 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950 hover:file:bg-cyan-200"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+
+                      setPlatformProofFiles((current) => {
+                        const next = { ...current };
+
+                        if (file) {
+                          next[platform] = file;
+                        } else {
+                          delete next[platform];
+                        }
+
+                        return next;
+                      });
+                    }}
+                    type="file"
+                  />
+                  <p className="text-xs text-slate-500">
+                    {platformProofFiles[platform]
+                      ? `Selected: ${platformProofFiles[platform]?.name}`
+                      : `Required for ${platformName(platform)} content.`}
+                  </p>
+                </div>
+              </FieldShell>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <FieldShell label="Monthly total views">
         <input
@@ -258,4 +336,20 @@ function FieldShell({
       <span className="mt-2 block">{children}</span>
     </label>
   );
+}
+
+function platformName(platform: Platform) {
+  if (platform === "x") {
+    return "X";
+  }
+
+  if (platform === "tiktok") {
+    return "TikTok";
+  }
+
+  if (platform === "lemon8") {
+    return "Lemon8";
+  }
+
+  return platform.charAt(0).toUpperCase() + platform.slice(1);
 }
