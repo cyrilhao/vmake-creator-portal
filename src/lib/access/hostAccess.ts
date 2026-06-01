@@ -3,6 +3,10 @@ type AccessDecision = {
   rewriteTo?: string;
 };
 
+const defaultAdminHostnames = [
+  "vmake-creator-manager.vercel.app",
+];
+
 type AccessInput = {
   pathname: string;
   hostname: string;
@@ -27,6 +31,15 @@ export function parseHostnameList(value: string | undefined) {
     .split(",")
     .map((hostname) => normalizeHostname(hostname))
     .filter(Boolean);
+}
+
+export function getAdminHostnames(value: string | undefined) {
+  return Array.from(
+    new Set([
+      ...defaultAdminHostnames.map(normalizeHostname),
+      ...parseHostnameList(value),
+    ]),
+  );
 }
 
 export function resolveAccessDecision({

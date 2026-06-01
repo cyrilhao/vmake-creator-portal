@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getAdminHostnames,
   isAdminHostname,
   parseHostnameList,
   resolveAccessDecision,
@@ -14,6 +15,10 @@ describe("parseHostnameList", () => {
 
   it("returns an empty list when the env value is missing", () => {
     expect(parseHostnameList(undefined)).toEqual([]);
+  });
+
+  it("always includes the short vercel admin hostname fallback", () => {
+    expect(getAdminHostnames(undefined)).toContain("vmake-creator-manager.vercel.app");
   });
 });
 

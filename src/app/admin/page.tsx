@@ -2,14 +2,14 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { buildPayoutWorkbookRows } from "@/lib/export/buildPayoutWorkbookRows";
-import { isAdminHostname, parseHostnameList } from "@/lib/access/hostAccess";
+import { getAdminHostnames, isAdminHostname } from "@/lib/access/hostAccess";
 import { listCampaigns } from "@/lib/server/campaignService";
 import { listAdminSubmissions } from "@/lib/server/submissionService";
 
 export default async function AdminPage() {
   const headerStore = await headers();
   const hostname = headerStore.get("host") ?? "";
-  const adminHostnames = parseHostnameList(process.env.ADMIN_APP_HOSTNAMES);
+  const adminHostnames = getAdminHostnames(process.env.ADMIN_APP_HOSTNAMES);
 
   if (adminHostnames.length > 0 && !isAdminHostname(hostname, adminHostnames)) {
     redirect("/");
