@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
   return NextResponse.json({
     nodeEnv: process.env.NODE_ENV ?? null,
+    host: process.env.VERCEL_URL ?? null,
     hasDiscordClientId: Boolean(process.env.DISCORD_CLIENT_ID),
     hasDiscordClientSecret: Boolean(process.env.DISCORD_CLIENT_SECRET),
     hasNextAuthSecret: Boolean(process.env.NEXTAUTH_SECRET),

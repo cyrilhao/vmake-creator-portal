@@ -3,6 +3,7 @@ import {
   getAdminHostnames,
   isAdminHostname,
   parseHostnameList,
+  resolveRequestHostname,
   resolveAccessDecision,
 } from "./hostAccess";
 
@@ -19,6 +20,21 @@ describe("parseHostnameList", () => {
 
   it("always includes the short vercel admin hostname fallback", () => {
     expect(getAdminHostnames(undefined)).toContain("vmake-creator-manager.vercel.app");
+  });
+
+  it("prefers x-forwarded-host when resolving the request hostname", () => {
+    const headers = new Map([
+      ["host", "internal-service.vercel.app"],
+      ["x-forwarded-host", "vmake-creator-manager.vercel.app"],
+    ]);
+
+    expect(
+      resolveRequestHostname({
+        get(name: string) {
+          return headers.get(name) ?? null;
+        },
+      }),
+    ).toBe("vmake-creator-manager.vercel.app");
   });
 });
 

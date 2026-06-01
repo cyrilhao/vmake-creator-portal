@@ -42,6 +42,20 @@ export function getAdminHostnames(value: string | undefined) {
   );
 }
 
+export function resolveRequestHostname(
+  headerSource:
+    | Headers
+    | {
+        get(name: string): string | null | undefined;
+      },
+) {
+  const forwardedHost = headerSource.get("x-forwarded-host");
+  const host = headerSource.get("host");
+  const vercelDeploymentUrl = headerSource.get("x-vercel-deployment-url");
+
+  return normalizeHostname(forwardedHost || host || vercelDeploymentUrl || "");
+}
+
 export function resolveAccessDecision({
   pathname,
   hostname,

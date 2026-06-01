@@ -4,7 +4,11 @@ import { DiscordSignInButton } from "@/components/auth/DiscordSignInButton";
 import { DiscordSignOutButton } from "@/components/auth/DiscordSignOutButton";
 import { CreatorSubmissionForm } from "@/components/creator/CreatorSubmissionForm";
 import { getSessionCreator, getServerAuthSession } from "@/lib/auth";
-import { getAdminHostnames, isAdminHostname } from "@/lib/access/hostAccess";
+import {
+  getAdminHostnames,
+  isAdminHostname,
+  resolveRequestHostname,
+} from "@/lib/access/hostAccess";
 import { buildPayoutWorkbookRows } from "@/lib/export/buildPayoutWorkbookRows";
 import { getActiveCampaign, listCampaigns } from "@/lib/server/campaignService";
 import { listAdminSubmissions, listCreatorSubmissions } from "@/lib/server/submissionService";
@@ -28,7 +32,7 @@ const submissionSteps = [
 
 export default async function HomePage() {
   const headerStore = await headers();
-  const hostname = headerStore.get("host") ?? "";
+  const hostname = resolveRequestHostname(headerStore);
   const adminHostnames = getAdminHostnames(process.env.ADMIN_APP_HOSTNAMES);
 
   if (isAdminHostname(hostname, adminHostnames)) {

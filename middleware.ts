@@ -1,10 +1,14 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getAdminHostnames, resolveAccessDecision } from "@/lib/access/hostAccess";
+import {
+  getAdminHostnames,
+  resolveAccessDecision,
+  resolveRequestHostname,
+} from "@/lib/access/hostAccess";
 
 export function middleware(request: NextRequest) {
   const adminHostnames = getAdminHostnames(process.env.ADMIN_APP_HOSTNAMES);
-  const hostname = request.headers.get("host") ?? "";
+  const hostname = resolveRequestHostname(request.headers);
   const { pathname } = request.nextUrl;
   const decision = resolveAccessDecision({
     pathname,
