@@ -36,10 +36,24 @@ export function validateCreatorSubmission(
       .map((proof) => proof.platform),
   );
 
-  if (!draft.creatorId.trim()) {
+  if (!draft.creatorDiscordId.trim()) {
     issues.push({
-      field: "creatorId",
-      message: "Creator is required.",
+      field: "creatorDiscordId",
+      message: "Discord account is required.",
+    });
+  }
+
+  if (!draft.campaignId.trim()) {
+    issues.push({
+      field: "campaignId",
+      message: "Campaign is required.",
+    });
+  }
+
+  if (!draft.campaignName.trim()) {
+    issues.push({
+      field: "campaignName",
+      message: "Campaign name is required.",
     });
   }
 
@@ -66,15 +80,16 @@ export function validateCreatorSubmission(
 
   const hasActiveDuplicate = existingSubmissions.some(
     (submission) =>
-      submission.creatorId === draft.creatorId &&
-      submission.rewardMonth === draft.rewardMonth &&
+      submission.creatorDiscordId === draft.creatorDiscordId &&
+      ((draft.campaignId && submission.campaignId === draft.campaignId) ||
+        submission.rewardMonth === draft.rewardMonth) &&
       activeSubmissionStatuses.has(submission.status),
   );
 
   if (hasActiveDuplicate) {
     issues.push({
-      field: "rewardMonth",
-      message: "Creator already has a submission for this reward month.",
+      field: "campaignId",
+      message: "Creator already has a submission for this campaign.",
     });
   }
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { buildPayoutWorkbookRows } from "@/lib/export/buildPayoutWorkbookRows";
 import { isAdminHostname, parseHostnameList } from "@/lib/access/hostAccess";
+import { listCampaigns } from "@/lib/server/campaignService";
 import { listAdminSubmissions } from "@/lib/server/submissionService";
 
 export default async function AdminPage() {
@@ -16,6 +17,7 @@ export default async function AdminPage() {
 
   const submissions = await listAdminSubmissions();
   const payoutRows = buildPayoutWorkbookRows(submissions);
+  const campaigns = await listCampaigns();
 
-  return <AdminDashboard submissions={submissions} payoutRows={payoutRows} />;
+  return <AdminDashboard submissions={submissions} payoutRows={payoutRows} campaigns={campaigns} />;
 }

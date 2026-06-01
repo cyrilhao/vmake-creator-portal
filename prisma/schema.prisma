@@ -65,6 +65,12 @@ enum RewardRuleStatus {
   archived
 }
 
+enum CampaignStatus {
+  draft
+  active
+  archived
+}
+
 enum AdminRole {
   admin
   reviewer
@@ -91,9 +97,12 @@ enum PayoutStatus {
 
 model Creator {
   id                  String       @id @default(cuid())
-  externalCreatorId   String       @unique
+  externalCreatorId   String?      @unique
+  discordUserId       String?      @unique
+  discordUsername     String?
+  discordAvatarUrl    String?
   name                String
-  email               String       @unique
+  email               String?      @unique
   handle              String?
   referralCode        String?      @unique
   referredByCreatorId String?
@@ -105,6 +114,20 @@ model Creator {
   referrals           Creator[]    @relation("CreatorReferrals")
   submissions         Submission[]
   payouts             Payout[]
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  name        String         @unique
+  rewardMonth String
+  status      CampaignStatus @default(draft)
+  isActive    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  submissions Submission[]
+
+  @@index([isActive, status])
 }
 
 model AdminUser {
@@ -125,6 +148,7 @@ model AdminUser {
 model Submission {
   id              String           @id @default(cuid())
   creatorId       String
+  campaignId      String?
   rewardMonth     DateTime
   creatorReportedTotalViews Int    @default(0)
   status          SubmissionStatus @default(draft)
@@ -138,6 +162,7 @@ model Submission {
   updatedAt       DateTime         @updatedAt
 
   creator            Creator                   @relation(fields: [creatorId], references: [id])
+  campaign           Campaign?                 @relation(fields: [campaignId], references: [id])
   contentItems       ContentItem[]
   referrals          SubmissionReferral[]
   platformProofs     SubmissionPlatformProof[]
@@ -145,8 +170,9 @@ model Submission {
   reviewRecords      AdminReviewRecord[]
   payout             Payout?
 
-  @@unique([creatorId, rewardMonth])
+  @@unique([creatorId, campaignId])
   @@index([rewardMonth, status])
+  @@index([campaignId, status])
 }
 
 model ContentItem {
@@ -203,8 +229,8 @@ model SubmissionPlatformProof {
 
   submission Submission @relation(fields: [submissionId], references: [id])
 
-  @@unique([submissionId, platform])
   @@index([submissionId])
+  @@index([submissionId, platform])
 }
 
 model RewardRuleVersion {

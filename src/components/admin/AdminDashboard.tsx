@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { AdminSubmissionListItem, PayoutWorkbookRow } from "@/lib/admin/adminTypes";
+import type { CampaignSummary } from "@/lib/server/campaignService";
 
 type CreatorSummary = {
   id: string;
   creatorName: string;
   creatorHandle: string;
+  discordId: string;
   submissionCount: number;
   totalPosts: number;
   totalViews: number;
@@ -22,19 +24,28 @@ type CreatorSummary = {
 export function AdminDashboard({
   submissions,
   payoutRows,
+  campaigns: initialCampaigns,
 }: {
   submissions: AdminSubmissionListItem[];
   payoutRows: PayoutWorkbookRow[];
+  campaigns: CampaignSummary[];
 }) {
   const creatorSummaries = useMemo(() => buildCreatorSummaries(submissions), [submissions]);
   const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(
     creatorSummaries[0]?.id ?? null,
   );
+  const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [campaignName, setCampaignName] = useState("");
+  const [campaignRewardMonth, setCampaignRewardMonth] = useState("");
+  const [campaignMessage, setCampaignMessage] = useState("");
+  const [isCampaignPending, startCampaignTransition] = useTransition();
 
   const selectedCreator =
     creatorSummaries.find((creator) => creator.id === selectedCreatorId) ??
     creatorSummaries[0] ??
     null;
+
+  const activeCampaign = campaigns.find((campaign) => campaign.isActive) ?? null;
 
   return (
     <main className="min-h-screen bg-[#08111f] text-white">
@@ -79,6 +90,145 @@ export function AdminDashboard({
           </div>
         </header>
 
+        <section className="mt-6 rounded-lg border border-white/10 bg-white/[0.04] p-5">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_320px]">
+            <div>
+              <p className="text-lg font-semibold text-white">Campaign configuration</p>
+              <p className="mt-1 text-sm text-slate-400">
+                The active campaign name is what creators see on the public submission form.
+              </p>
+              <div className="mt-4 space-y-3">
+                {campaigns.map((campaign) => (
+                  <div
+                    className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#0b1020] p-4 sm:flex-row sm:items-center sm:justify-between"
+                    key={campaign.id}
+                  >
+                    <div>
+                      <p className="font-medium text-white">{campaign.name}</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Reward month {campaign.rewardMonth} · {humanizeStatus(campaign.status)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {campaign.isActive ? (
+                        <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
+                          Active
+                        </span>
+                      ) : (
+                        <button
+                          className="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/[0.05]"
+                          disabled={isCampaignPending}
+                          onClick={() =>
+                            startCampaignTransition(async () => {
+                              setCampaignMessage("");
+                              const response = await fetch(
+                                `/api/admin/campaigns/${campaign.id}/activate`,
+                                { method: "POST" },
+                              );
+                              const payload = await response.json();
+
+                              if (!response.ok) {
+                                setCampaignMessage(payload.message ?? "Unable to activate campaign.");
+                                return;
+                              }
+
+                              setCampaigns((current) =>
+                                current.map((item) => ({
+                                  ...item,
+                                  isActive: item.id === campaign.id,
+                                  status: item.id === campaign.id ? "active" : "archived",
+                                })),
+                              );
+                              setCampaignMessage(`Active campaign updated to ${campaign.name}.`);
+                            })
+                          }
+                          type="button"
+                        >
+                          Make active
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-[#0b1020] p-4">
+              <p className="font-semibold text-white">Create campaign</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                Create the next campaign and optionally make it visible immediately.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="text-sm text-slate-300">Campaign name</span>
+                  <input
+                    className="creator-input mt-2"
+                    onChange={(event) => setCampaignName(event.target.value)}
+                    placeholder="June 2026 Creator Campaign"
+                    value={campaignName}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-slate-300">Reward month</span>
+                  <input
+                    className="creator-input mt-2"
+                    onChange={(event) => setCampaignRewardMonth(event.target.value)}
+                    placeholder="2026-06"
+                    value={campaignRewardMonth}
+                  />
+                </label>
+                <button
+                  className="w-full rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-200 disabled:opacity-70"
+                  disabled={isCampaignPending}
+                  onClick={() =>
+                    startCampaignTransition(async () => {
+                      setCampaignMessage("");
+                      const response = await fetch("/api/admin/campaigns", {
+                        method: "POST",
+                        headers: {
+                          "content-type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          name: campaignName,
+                          rewardMonth: campaignRewardMonth,
+                          activate: true,
+                        }),
+                      });
+                      const payload = await response.json();
+
+                      if (!response.ok) {
+                        setCampaignMessage(payload.message ?? "Unable to create campaign.");
+                        return;
+                      }
+
+                      const nextCampaign = payload.campaign as CampaignSummary;
+                      setCampaigns((current) => [
+                        { ...nextCampaign, isActive: true, status: "active" as const },
+                        ...current.map((item) => ({
+                          ...item,
+                          isActive: false,
+                          status: "archived" as const,
+                        })),
+                      ]);
+                      setCampaignName("");
+                      setCampaignRewardMonth("");
+                      setCampaignMessage(`Created and activated ${nextCampaign.name}.`);
+                    })
+                  }
+                  type="button"
+                >
+                  {isCampaignPending ? "Saving..." : "Create and activate"}
+                </button>
+                {activeCampaign ? (
+                  <p className="text-xs text-slate-400">Current public campaign: {activeCampaign.name}</p>
+                ) : null}
+                {campaignMessage ? <p className="text-xs text-cyan-200">{campaignMessage}</p> : null}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(340px,0.95fr)_minmax(0,1.35fr)]">
           <div className="rounded-lg border border-white/10 bg-white/[0.04]">
             <div className="border-b border-white/10 px-4 py-4">
@@ -111,6 +261,7 @@ export function AdminDashboard({
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-white">{creator.creatorName}</p>
                           <p className="truncate text-sm text-slate-400">{creator.creatorHandle}</p>
+                          <p className="truncate text-xs text-slate-500">{creator.discordId}</p>
                         </div>
                         <span className={statusClass(creator.statuses[0] ?? "submitted")}>
                           {humanizeStatus(creator.statuses[0] ?? "submitted")}
@@ -151,6 +302,7 @@ export function AdminDashboard({
                   <div>
                     <h2 className="text-xl font-semibold">{selectedCreator.creatorName}</h2>
                     <p className="mt-1 text-sm text-slate-400">{selectedCreator.creatorHandle}</p>
+                    <p className="mt-1 text-xs text-slate-500">{selectedCreator.discordId}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <DetailMetric label="Submissions" value={String(selectedCreator.submissionCount)} />
@@ -418,6 +570,7 @@ function buildCreatorSummaries(submissions: AdminSubmissionListItem[]): CreatorS
         id: submission.creatorHandle,
         creatorName: submission.creatorName,
         creatorHandle: submission.creatorHandle,
+        discordId: submission.creatorDiscordId,
         submissionCount: 1,
         totalPosts: submission.posts,
         totalViews: submission.totalViews,

@@ -5,9 +5,11 @@ import type { CreatorSubmissionDraft } from "./submissionTypes";
 const draft = (
   overrides: Partial<CreatorSubmissionDraft> = {},
 ): CreatorSubmissionDraft => ({
-  creatorId: overrides.creatorId ?? "creator-1",
+  creatorDiscordId: overrides.creatorDiscordId ?? "1234567890",
   creatorFullName: overrides.creatorFullName ?? "Jane Creator",
   paypalEmail: overrides.paypalEmail ?? "jane@example.com",
+  campaignId: overrides.campaignId ?? "campaign-2026-05",
+  campaignName: overrides.campaignName ?? "May 2026 Creator Campaign",
   rewardMonth: overrides.rewardMonth ?? "2026-05",
   status: overrides.status ?? "draft",
   referralDiscordUsernames: overrides.referralDiscordUsernames,
@@ -110,7 +112,8 @@ describe("validateCreatorSubmission", () => {
   it("rejects a duplicate submission for the same creator and month", () => {
     const result = validateCreatorSubmission(draft(), [
       {
-        creatorId: "creator-1",
+        creatorDiscordId: "1234567890",
+        campaignId: "campaign-2026-05",
         rewardMonth: "2026-05",
         status: "submitted",
       },
@@ -118,8 +121,8 @@ describe("validateCreatorSubmission", () => {
 
     expect(result.valid).toBe(false);
     expect(result.issues).toContainEqual({
-      field: "rewardMonth",
-      message: "Creator already has a submission for this reward month.",
+      field: "campaignId",
+      message: "Creator already has a submission for this campaign.",
     });
   });
 
@@ -156,7 +159,8 @@ describe("validateCreatorSubmission", () => {
   it("allows replacing an existing rejected submission for the same month", () => {
     const result = validateCreatorSubmission(draft(), [
       {
-        creatorId: "creator-1",
+        creatorDiscordId: "1234567890",
+        campaignId: "campaign-2026-05",
         rewardMonth: "2026-05",
         status: "rejected",
       },
@@ -322,5 +326,27 @@ describe("validateCreatorSubmission", () => {
       field: "referralDiscordUsernames[1]",
       message: "Referral Discord username is not valid.",
     });
+  });
+
+  it("accepts multiple screenshots for one platform", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        platformProofs: [
+          {
+            platform: "tiktok",
+            blobUrl: "https://blob.example/tiktok-proof-1.png",
+            filename: "tiktok-proof-1.png",
+          },
+          {
+            platform: "tiktok",
+            blobUrl: "https://blob.example/tiktok-proof-2.png",
+            filename: "tiktok-proof-2.png",
+          },
+        ],
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(true);
   });
 });

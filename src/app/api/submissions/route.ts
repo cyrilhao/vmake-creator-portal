@@ -1,22 +1,61 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { getSessionCreator, getServerAuthSession } from "@/lib/auth";
 import { supportedPlatforms, type Platform } from "@/lib/rewards/rewardTypes";
 import { createSubmissionFromCreatorInput } from "@/lib/server/submissionService";
 
 export async function POST(request: Request) {
   try {
+    if (
+      !process.env.DISCORD_CLIENT_ID ||
+      !process.env.DISCORD_CLIENT_SECRET ||
+      !process.env.NEXTAUTH_SECRET
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          issues: [
+            {
+              field: "creatorDiscordId",
+              message: "Discord login is not configured yet.",
+            },
+          ],
+        },
+        { status: 503 },
+      );
+    }
+
+    const session = await getServerAuthSession();
+    const creator = getSessionCreator(session);
+
+    if (!creator) {
+      return NextResponse.json(
+        {
+          ok: false,
+          issues: [
+            {
+              field: "creatorDiscordId",
+              message: "Sign in with Discord before submitting.",
+            },
+          ],
+        },
+        { status: 401 },
+      );
+    }
+
     const contentType = request.headers.get("content-type") ?? "";
 
     if (contentType.includes("multipart/form-data")) {
-      return handleMultipartSubmission(request);
+      return handleMultipartSubmission(request, creator);
     }
 
     const body = await request.json();
     const result = await createSubmissionFromCreatorInput({
-      creatorId: String(body.creatorId ?? ""),
+      creatorDiscordId: creator.discordUserId,
+      creatorDiscordUsername: creator.discordUsername,
       creatorFullName: String(body.creatorFullName ?? ""),
       paypalEmail: String(body.paypalEmail ?? ""),
-      rewardMonth: String(body.rewardMonth ?? ""),
+      campaignId: String(body.campaignId ?? ""),
       bulkInput: String(body.bulkInput ?? ""),
       totalMonthlyViews: Number(body.totalMonthlyViews ?? 0),
       referralDiscordUsernames: Array.isArray(body.referralDiscordUsernames)
@@ -66,12 +105,17 @@ export async function POST(request: Request) {
   }
 }
 
-async function handleMultipartSubmission(request: Request) {
+async function handleMultipartSubmission(
+  request: Request,
+  creator: {
+    discordUserId: string;
+    discordUsername: string;
+  },
+) {
   const formData = await request.formData();
-  const creatorId = String(formData.get("creatorId") ?? "");
   const creatorFullName = String(formData.get("creatorFullName") ?? "");
   const paypalEmail = String(formData.get("paypalEmail") ?? "");
-  const rewardMonth = String(formData.get("rewardMonth") ?? "");
+  const campaignId = String(formData.get("campaignId") ?? "");
   const bulkInput = String(formData.get("bulkInput") ?? "");
   const totalMonthlyViews = Number(formData.get("totalMonthlyViews") ?? 0);
   const referralDiscordUsernames = parseReferralUsernames(
@@ -80,28 +124,32 @@ async function handleMultipartSubmission(request: Request) {
 
   const uploadedProofs = await Promise.all(
     supportedPlatforms.flatMap((platform) => {
-      const proofFile = formData.get(`platformProof.${platform}`);
+      const proofFiles = formData.getAll(`platformProof.${platform}`);
 
-      if (!(proofFile instanceof File) || proofFile.size === 0) {
-        return [];
-      }
+      return proofFiles.flatMap((proofFile, index) => {
+        if (!(proofFile instanceof File) || proofFile.size === 0) {
+          return [];
+        }
 
-      return [
-        uploadPlatformProof({
-          creatorId,
-          rewardMonth,
-          platform,
-          proofFile,
-        }),
-      ];
+        return [
+          uploadPlatformProof({
+            creatorDiscordId: creator.discordUserId,
+            campaignId,
+            platform,
+            proofFile,
+            index,
+          }),
+        ];
+      });
     }),
   );
 
   const result = await createSubmissionFromCreatorInput({
-    creatorId,
+    creatorDiscordId: creator.discordUserId,
+    creatorDiscordUsername: creator.discordUsername,
     creatorFullName,
     paypalEmail,
-    rewardMonth,
+    campaignId,
     bulkInput,
     totalMonthlyViews,
     referralDiscordUsernames,
@@ -128,21 +176,23 @@ async function handleMultipartSubmission(request: Request) {
 }
 
 async function uploadPlatformProof({
-  creatorId,
-  rewardMonth,
+  creatorDiscordId,
+  campaignId,
   platform,
   proofFile,
+  index,
 }: {
-  creatorId: string;
-  rewardMonth: string;
+  creatorDiscordId: string;
+  campaignId: string;
   platform: Platform;
   proofFile: File;
+  index: number;
 }) {
   const pathname = [
     "proofs",
-    sanitizePathSegment(rewardMonth),
-    sanitizePathSegment(creatorId || "creator"),
-    `${platform}-${sanitizePathSegment(proofFile.name || "proof")}`,
+    sanitizePathSegment(campaignId || "campaign"),
+    sanitizePathSegment(creatorDiscordId || "creator"),
+    `${platform}-${index + 1}-${sanitizePathSegment(proofFile.name || "proof")}`,
   ].join("/");
 
   const blob = await put(pathname, proofFile, {

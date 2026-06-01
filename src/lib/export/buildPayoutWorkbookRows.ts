@@ -76,8 +76,9 @@ export function buildPayoutWorkbookRows(submissions: AdminSubmissionListItem[]) 
         viewRankingReward: leaderboard.viewRankingReward,
         newbieBonus,
         payableAmount,
-        paypal: submission.creatorEmail,
+        paypal: submission.creatorEmail ?? "",
         creatorName: submission.creatorName,
+        campaignName: submission.campaignName,
         rewardMonth: submission.rewardMonthKey,
         status: submission.status,
       } satisfies PayoutWorkbookRow;

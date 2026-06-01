@@ -19,6 +19,7 @@ describe("exportPayoutWorkbook", () => {
         payableAmount: 195,
         paypal: "alice@example.com",
         creatorName: "Alice",
+        campaignName: "May 2026 Creator Campaign",
         rewardMonth: "2026-05",
         status: "submitted",
       },

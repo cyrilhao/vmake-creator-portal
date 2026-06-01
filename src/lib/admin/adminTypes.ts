@@ -2,7 +2,10 @@ export type AdminSubmissionListItem = {
   id: string;
   creatorName: string;
   creatorHandle: string;
-  creatorEmail: string;
+  creatorDiscordId: string;
+  creatorEmail: null | string;
+  campaignId: null | string;
+  campaignName: string;
   monthLabel: string;
   rewardMonthKey: string;
   status: string;
@@ -59,6 +62,7 @@ export type PayoutWorkbookRow = {
   payableAmount: number;
   paypal: string;
   creatorName: string;
+  campaignName: string;
   rewardMonth: string;
   status: string;
 };

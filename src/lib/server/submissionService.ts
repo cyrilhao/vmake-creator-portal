@@ -13,10 +13,11 @@ import { validateCreatorSubmission } from "@/lib/submissions/validateSubmission"
 import { verifySubmissionContentItems } from "@/lib/verification/contentVerification";
 
 export type CreatorSubmissionPayload = {
-  creatorId: string;
+  creatorDiscordId: string;
+  creatorDiscordUsername?: string;
   creatorFullName: string;
   paypalEmail: string;
-  rewardMonth: string;
+  campaignId: string;
   bulkInput: string;
   totalMonthlyViews: number;
   referralDiscordUsernames?: string[];
@@ -30,18 +31,31 @@ export type CreatorSubmissionPayload = {
 };
 
 export async function createSubmissionFromCreatorInput(input: CreatorSubmissionPayload) {
-  const parsed = parseBulkContentInput(input.bulkInput, input.rewardMonth);
+  const campaign = await prisma.campaign.findUnique({
+    where: {
+      id: input.campaignId,
+    },
+  });
+  const rewardMonth = campaign?.rewardMonth ?? "";
+  const parsed = parseBulkContentInput(input.bulkInput, rewardMonth);
   const issues: SubmissionValidationIssue[] = parsed.issues.map((issue) => ({
     field: `bulkInput.line${issue.line}`,
     message: issue.message,
   }));
 
-  const rewardMonthDate = parseRewardMonth(input.rewardMonth);
+  const rewardMonthDate = parseRewardMonth(rewardMonth);
+
+  if (!campaign) {
+    issues.push({
+      field: "campaignId",
+      message: "Selected campaign is not available.",
+    });
+  }
 
   if (!rewardMonthDate) {
     issues.push({
       field: "rewardMonth",
-      message: "Reward month must use YYYY-MM format.",
+      message: "Campaign reward month must use YYYY-MM format.",
     });
   }
 
@@ -52,12 +66,14 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
     });
   }
 
-  const existingSubmissions = await loadExistingSubmissionSummaries(input.creatorId);
+  const existingSubmissions = await loadExistingSubmissionSummaries(input.creatorDiscordId);
   const draft = {
-    creatorId: input.creatorId,
+    creatorDiscordId: input.creatorDiscordId,
     creatorFullName: input.creatorFullName,
     paypalEmail: input.paypalEmail,
-    rewardMonth: input.rewardMonth,
+    campaignId: input.campaignId,
+    campaignName: campaign?.name ?? "",
+    rewardMonth,
     status: "submitted" as const,
     referralDiscordUsernames: input.referralDiscordUsernames,
     platformProofs: input.platformProofs,
@@ -81,7 +97,8 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
   }
 
   const creator = await upsertCreator({
-    externalCreatorId: input.creatorId,
+    discordUserId: input.creatorDiscordId,
+    discordUsername: input.creatorDiscordUsername,
     fullName: input.creatorFullName,
     paypalEmail: input.paypalEmail,
   });
@@ -133,6 +150,7 @@ export async function createSubmissionFromCreatorInput(input: CreatorSubmissionP
   const submission = await prisma.submission.create({
     data: {
       creatorId: creator.id,
+      campaignId: campaign?.id,
       rewardMonth: rewardMonthDate,
       creatorReportedTotalViews: input.totalMonthlyViews,
       status: "submitted",
@@ -227,6 +245,7 @@ export async function listAdminSubmissions(): Promise<AdminSubmissionListItem[]>
       ],
       include: {
         creator: true,
+        campaign: true,
         contentItems: {
           orderBy: {
             createdAt: "asc",
@@ -265,9 +284,14 @@ export async function listAdminSubmissions(): Promise<AdminSubmissionListItem[]>
         id: submission.id,
         creatorName: submission.creator.name,
         creatorHandle:
-          submission.creator.handle ?? `@${submission.creator.externalCreatorId}`,
+          submission.creator.handle ??
+          `@${submission.creator.discordUsername ?? submission.creator.externalCreatorId ?? "creator"}`,
+        creatorDiscordId:
+          submission.creator.discordUserId ?? submission.creator.externalCreatorId ?? "",
         creatorEmail: submission.creator.email,
-        monthLabel: formatRewardMonth(submission.rewardMonth),
+        campaignId: submission.campaignId,
+        campaignName: submission.campaign?.name ?? formatRewardMonth(submission.rewardMonth),
+        monthLabel: submission.campaign?.name ?? formatRewardMonth(submission.rewardMonth),
         rewardMonthKey: toRewardMonthKey(submission.rewardMonth),
         status: submission.status,
         posts: submission.contentItems.length,
@@ -317,15 +341,16 @@ export async function listAdminSubmissions(): Promise<AdminSubmissionListItem[]>
 }
 
 async function loadExistingSubmissionSummaries(
-  externalCreatorId: string,
+  creatorDiscordId: string,
 ): Promise<ExistingSubmissionSummary[]> {
   const creator = await prisma.creator.findUnique({
     where: {
-      externalCreatorId,
+      discordUserId: creatorDiscordId,
     },
     include: {
       submissions: {
         select: {
+          campaignId: true,
           creatorId: true,
           rewardMonth: true,
           status: true,
@@ -339,37 +364,100 @@ async function loadExistingSubmissionSummaries(
   }
 
   return creator.submissions.map((submission) => ({
-    creatorId: externalCreatorId,
+    creatorDiscordId,
+    campaignId: submission.campaignId ?? undefined,
     rewardMonth: toRewardMonthKey(submission.rewardMonth),
     status: submission.status,
   }));
 }
 
 async function upsertCreator({
-  externalCreatorId,
+  discordUserId,
+  discordUsername,
   fullName,
   paypalEmail,
 }: {
-  externalCreatorId: string;
+  discordUserId: string;
+  discordUsername?: string;
   fullName: string;
   paypalEmail: string;
 }) {
   return prisma.creator.upsert({
     where: {
-      externalCreatorId,
+      discordUserId,
     },
     update: {
-      handle: externalCreatorId,
+      externalCreatorId: discordUserId,
+      discordUsername,
+      handle: discordUsername ? `@${discordUsername}` : `@${discordUserId}`,
       name: fullName,
       email: paypalEmail,
     },
     create: {
-      externalCreatorId,
-      handle: externalCreatorId,
+      externalCreatorId: discordUserId,
+      discordUserId,
+      discordUsername,
+      handle: discordUsername ? `@${discordUsername}` : `@${discordUserId}`,
       name: fullName,
       email: paypalEmail,
     },
   });
+}
+
+export async function listCreatorSubmissions(creatorDiscordId: string) {
+  if (!creatorDiscordId) {
+    return [];
+  }
+
+  const creator = await prisma.creator.findUnique({
+    where: {
+      discordUserId: creatorDiscordId,
+    },
+    include: {
+      submissions: {
+        orderBy: [
+          { submittedAt: "desc" },
+          { createdAt: "desc" },
+        ],
+        include: {
+          campaign: true,
+          contentItems: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+          platformProofs: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!creator) {
+    return [];
+  }
+
+  return creator.submissions.map((submission) => ({
+    id: submission.id,
+    campaignName: submission.campaign?.name ?? formatRewardMonth(submission.rewardMonth),
+    rewardMonthKey: toRewardMonthKey(submission.rewardMonth),
+    status: submission.status,
+    submittedAt:
+      submission.submittedAt?.toISOString() ?? submission.createdAt.toISOString(),
+    totalViews: submission.creatorReportedTotalViews,
+    contentCount: submission.contentItems.length,
+    platforms: Array.from(new Set(submission.contentItems.map((item) => platformLabel(item.platform)))),
+    contentItems: submission.contentItems.map((item) => ({
+      id: item.id,
+      platform: platformLabel(item.platform),
+      url: item.url,
+      publishedAt: item.publishedAt.toISOString(),
+    })),
+    proofCount: submission.platformProofs.length,
+  }));
 }
 
 async function ensureSystemAdmin() {

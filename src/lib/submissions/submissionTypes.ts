@@ -1,9 +1,11 @@
 import type { ContentStatus, Platform, SubmissionStatus } from "@/lib/rewards/rewardTypes";
 
 export type CreatorSubmissionDraft = {
-  creatorId: string;
+  creatorDiscordId: string;
   creatorFullName: string;
   paypalEmail: string;
+  campaignId: string;
+  campaignName: string;
   rewardMonth: string;
   status: SubmissionStatus;
   contentItems: CreatorContentDraft[];
@@ -27,7 +29,8 @@ export type CreatorPlatformProofDraft = {
 };
 
 export type ExistingSubmissionSummary = {
-  creatorId: string;
+  creatorDiscordId: string;
+  campaignId?: string;
   rewardMonth: string;
   status: SubmissionStatus;
 };
