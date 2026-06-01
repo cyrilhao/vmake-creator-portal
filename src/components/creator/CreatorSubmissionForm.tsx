@@ -310,23 +310,60 @@ export function CreatorSubmissionForm({
 
                         setPlatformProofFiles((current) => {
                           const next = { ...current };
+                          const existingFiles = next[platform] ?? [];
 
                           if (files.length > 0) {
-                            next[platform] = files;
+                            next[platform] = dedupeFiles([...existingFiles, ...files]);
                           } else {
                             delete next[platform];
                           }
 
                           return next;
                         });
+
+                        event.currentTarget.value = "";
                       }}
                       type="file"
                     />
                     <p className="text-xs text-slate-500">
                       {platformProofFiles[platform]?.length
-                        ? `${platformProofFiles[platform]?.length} screenshot(s) selected`
+                        ? `${platformProofFiles[platform]?.length} screenshot(s) selected. You can add more by choosing files again.`
                         : `Required for ${platformName(platform)} content.`}
                     </p>
+                    {platformProofFiles[platform]?.length ? (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {platformProofFiles[platform]?.map((file, index) => (
+                          <span
+                            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-200"
+                            key={`${platform}-${file.name}-${index}`}
+                          >
+                            <span className="max-w-[180px] truncate">{file.name}</span>
+                            <button
+                              className="text-slate-400 transition hover:text-white"
+                              onClick={() =>
+                                setPlatformProofFiles((current) => {
+                                  const next = { ...current };
+                                  const remainingFiles = (next[platform] ?? []).filter(
+                                    (_item, fileIndex) => fileIndex !== index,
+                                  );
+
+                                  if (remainingFiles.length === 0) {
+                                    delete next[platform];
+                                  } else {
+                                    next[platform] = remainingFiles;
+                                  }
+
+                                  return next;
+                                })
+                              }
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </FieldShell>
               ))}
@@ -539,4 +576,19 @@ function formatNumber(value: number) {
 
 function humanizeStatus(value: string) {
   return value.replace(/_/g, " ");
+}
+
+function dedupeFiles(files: File[]) {
+  const seenFiles = new Set<string>();
+
+  return files.filter((file) => {
+    const fileKey = [file.name, file.size, file.lastModified].join(":");
+
+    if (seenFiles.has(fileKey)) {
+      return false;
+    }
+
+    seenFiles.add(fileKey);
+    return true;
+  });
 }
