@@ -345,15 +345,15 @@ export function CreatorSubmissionForm({
                         : `Required for ${platformName(platform)} content.`}
                     </p>
                     {platformProofFiles[platform]?.length ? (
-                      <div className="flex flex-wrap gap-2 pt-1">
+                      <div className="space-y-2 pt-1">
                         {platformProofFiles[platform]?.map((file, index) => (
-                          <span
-                            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-200"
+                          <div
+                            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-slate-200"
                             key={`${platform}-${file.name}-${index}`}
                           >
-                            <span className="max-w-[180px] truncate">{file.name}</span>
+                            <span className="min-w-0 truncate">{file.name}</span>
                             <button
-                              className="text-slate-400 transition hover:text-white"
+                              className="shrink-0 rounded-md px-2 py-1 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
                               onClick={() =>
                                 setPlatformProofFiles((current) => {
                                   const next = { ...current };
@@ -374,7 +374,7 @@ export function CreatorSubmissionForm({
                             >
                               Remove
                             </button>
-                          </span>
+                          </div>
                         ))}
                       </div>
                     ) : null}
@@ -484,7 +484,7 @@ export function CreatorSubmissionForm({
                   </span>
                 </div>
 
-                <div className="mt-3 grid gap-3 text-sm sm:grid-cols-4">
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                   <HistoryMetric label="Views" value={formatNumber(submission.totalViews)} />
                   <HistoryMetric label="Links" value={String(submission.contentCount)} />
                   <HistoryMetric label="Platforms" value={String(submission.platforms.length)} />
@@ -537,9 +537,9 @@ function FieldShell({
 
 function HistoryMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+    <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
-      <p className="mt-1 font-semibold text-white">{value}</p>
+      <p className="mt-1 break-words text-sm font-semibold leading-5 text-white">{value}</p>
     </div>
   );
 }
