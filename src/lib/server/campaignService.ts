@@ -55,14 +55,14 @@ export async function listCampaigns(): Promise<CampaignSummary[]> {
 
 export async function createCampaign(input: { name: string; rewardMonth: string; activate?: boolean }) {
   const name = input.name.trim();
-  const rewardMonth = input.rewardMonth.trim();
+  const rewardMonth = normalizeRewardMonthInput(input.rewardMonth);
 
   if (!name) {
     throw new Error("Campaign name is required.");
   }
 
-  if (!/^\d{4}-\d{2}$/.test(rewardMonth)) {
-    throw new Error("Campaign reward month must use YYYY-MM.");
+  if (!rewardMonth) {
+    throw new Error("Campaign reward month must use MM-YY.");
   }
 
   return prisma.$transaction(async (tx) => {
@@ -102,6 +102,38 @@ export async function createCampaign(input: { name: string; rewardMonth: string;
       },
     });
   });
+}
+
+export function formatRewardMonthShort(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})$/);
+
+  if (!match) {
+    return value;
+  }
+
+  return `${match[2]}-${match[1].slice(2)}`;
+}
+
+function normalizeRewardMonthInput(value: string) {
+  const normalized = value.trim();
+
+  if (/^\d{4}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  const shortMatch = normalized.match(/^(\d{2})-(\d{2})$/);
+
+  if (!shortMatch) {
+    return null;
+  }
+
+  const [, month, year] = shortMatch;
+
+  if (Number(month) < 1 || Number(month) > 12) {
+    return null;
+  }
+
+  return `20${year}-${month}`;
 }
 
 export async function activateCampaign(campaignId: string) {

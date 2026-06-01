@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import type { AdminSubmissionListItem, PayoutWorkbookRow } from "@/lib/admin/adminTypes";
-import type { CampaignSummary } from "@/lib/server/campaignService";
+import { formatRewardMonthShort, type CampaignSummary } from "@/lib/server/campaignService";
 
 type CreatorSummary = {
   id: string;
@@ -36,9 +36,10 @@ export function AdminDashboard({
   );
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [campaignName, setCampaignName] = useState("");
-  const [campaignRewardMonth, setCampaignRewardMonth] = useState("");
+  const [campaignRewardMonth, setCampaignRewardMonth] = useState(defaultCampaignMonthOption());
   const [campaignMessage, setCampaignMessage] = useState("");
   const [isCampaignPending, startCampaignTransition] = useTransition();
+  const campaignMonthOptions = useMemo(() => buildCampaignMonthOptions(), []);
 
   const selectedCreator =
     creatorSummaries.find((creator) => creator.id === selectedCreatorId) ??
@@ -91,95 +92,50 @@ export function AdminDashboard({
         </header>
 
         <section className="mt-6 rounded-lg border border-white/10 bg-white/[0.04] p-5">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_320px]">
-            <div>
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0 flex-1">
               <p className="text-lg font-semibold text-white">Campaign configuration</p>
               <p className="mt-1 text-sm text-slate-400">
-                The active campaign name is what creators see on the public submission form.
+                Set the public campaign name here. Creators will only see the currently active one.
               </p>
-              <div className="mt-4 space-y-3">
-                {campaigns.map((campaign) => (
-                  <div
-                    className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#0b1020] p-4 sm:flex-row sm:items-center sm:justify-between"
-                    key={campaign.id}
-                  >
-                    <div>
-                      <p className="font-medium text-white">{campaign.name}</p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        Reward month {campaign.rewardMonth} · {humanizeStatus(campaign.status)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {campaign.isActive ? (
-                        <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
-                          Active
-                        </span>
-                      ) : (
-                        <button
-                          className="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/[0.05]"
-                          disabled={isCampaignPending}
-                          onClick={() =>
-                            startCampaignTransition(async () => {
-                              setCampaignMessage("");
-                              const response = await fetch(
-                                `/api/admin/campaigns/${campaign.id}/activate`,
-                                { method: "POST" },
-                              );
-                              const payload = await response.json();
-
-                              if (!response.ok) {
-                                setCampaignMessage(payload.message ?? "Unable to activate campaign.");
-                                return;
-                              }
-
-                              setCampaigns((current) =>
-                                current.map((item) => ({
-                                  ...item,
-                                  isActive: item.id === campaign.id,
-                                  status: item.id === campaign.id ? "active" : "archived",
-                                })),
-                              );
-                              setCampaignMessage(`Active campaign updated to ${campaign.name}.`);
-                            })
-                          }
-                          type="button"
-                        >
-                          Make active
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {activeCampaign ? (
+                <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-100">Current active campaign</p>
+                  <p className="mt-2 text-base font-semibold text-white">{activeCampaign.name}</p>
+                  <p className="mt-1 text-sm text-emerald-100/80">
+                    Month {formatRewardMonthShort(activeCampaign.rewardMonth)}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-[#0b1020] p-4">
-              <p className="font-semibold text-white">Create campaign</p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Create the next campaign and optionally make it visible immediately.
-              </p>
-
-              <div className="mt-4 space-y-3">
+            <div className="w-full rounded-xl border border-white/10 bg-[#0b1020] p-4 xl:max-w-3xl">
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.8fr)_160px_180px] md:items-end">
                 <label className="block">
                   <span className="text-sm text-slate-300">Campaign name</span>
                   <input
                     className="creator-input mt-2"
                     onChange={(event) => setCampaignName(event.target.value)}
-                    placeholder="June 2026 Creator Campaign"
+                    placeholder="June Creator Push"
                     value={campaignName}
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm text-slate-300">Reward month</span>
-                  <input
+                  <span className="text-sm text-slate-300">Month</span>
+                  <select
                     className="creator-input mt-2"
                     onChange={(event) => setCampaignRewardMonth(event.target.value)}
-                    placeholder="2026-06"
                     value={campaignRewardMonth}
-                  />
+                  >
+                    {campaignMonthOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <button
-                  className="w-full rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-200 disabled:opacity-70"
+                  className="rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-200 disabled:opacity-70"
                   disabled={isCampaignPending}
                   onClick={() =>
                     startCampaignTransition(async () => {
@@ -212,7 +168,7 @@ export function AdminDashboard({
                         })),
                       ]);
                       setCampaignName("");
-                      setCampaignRewardMonth("");
+                      setCampaignRewardMonth(defaultCampaignMonthOption());
                       setCampaignMessage(`Created and activated ${nextCampaign.name}.`);
                     })
                   }
@@ -220,12 +176,64 @@ export function AdminDashboard({
                 >
                   {isCampaignPending ? "Saving..." : "Create and activate"}
                 </button>
-                {activeCampaign ? (
-                  <p className="text-xs text-slate-400">Current public campaign: {activeCampaign.name}</p>
-                ) : null}
-                {campaignMessage ? <p className="text-xs text-cyan-200">{campaignMessage}</p> : null}
               </div>
+              {campaignMessage ? <p className="mt-3 text-xs text-cyan-200">{campaignMessage}</p> : null}
             </div>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {campaigns.map((campaign) => (
+              <div
+                className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#0b1020] p-4 sm:flex-row sm:items-center sm:justify-between"
+                key={campaign.id}
+              >
+                <div>
+                  <p className="font-medium text-white">{campaign.name}</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Month {formatRewardMonthShort(campaign.rewardMonth)} · {humanizeStatus(campaign.status)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {campaign.isActive ? (
+                    <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
+                      Active
+                    </span>
+                  ) : (
+                    <button
+                      className="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/[0.05]"
+                      disabled={isCampaignPending}
+                      onClick={() =>
+                        startCampaignTransition(async () => {
+                          setCampaignMessage("");
+                          const response = await fetch(
+                            `/api/admin/campaigns/${campaign.id}/activate`,
+                            { method: "POST" },
+                          );
+                          const payload = await response.json();
+
+                          if (!response.ok) {
+                            setCampaignMessage(payload.message ?? "Unable to activate campaign.");
+                            return;
+                          }
+
+                          setCampaigns((current) =>
+                            current.map((item) => ({
+                              ...item,
+                              isActive: item.id === campaign.id,
+                              status: item.id === campaign.id ? "active" : "archived",
+                            })),
+                          );
+                          setCampaignMessage(`Active campaign updated to ${campaign.name}.`);
+                        })
+                      }
+                      type="button"
+                    >
+                      Make active
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -690,6 +698,31 @@ function verificationStatusClass(status: string) {
 
 function humanizeStatus(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildCampaignMonthOptions() {
+  const options: Array<{ value: string; label: string }> = [];
+  const today = new Date();
+
+  for (let offset = -1; offset < 18; offset += 1) {
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, 1));
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const year = String(date.getUTCFullYear()).slice(2);
+
+    options.push({
+      value: `${month}-${year}`,
+      label: `${month}-${year}`,
+    });
+  }
+
+  return options;
+}
+
+function defaultCampaignMonthOption() {
+  const today = new Date();
+  const month = String(today.getUTCMonth() + 1).padStart(2, "0");
+  const year = String(today.getUTCFullYear()).slice(2);
+  return `${month}-${year}`;
 }
 
 function formatMoney(value: number) {
