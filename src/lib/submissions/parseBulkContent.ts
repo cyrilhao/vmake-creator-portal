@@ -39,9 +39,7 @@ export function parseBulkContentInput(input: string, rewardMonth: string): BulkP
     .filter(Boolean);
 
   lines.forEach((line, lineIndex) => {
-    const delimiter = line.includes("\t") ? "\t" : ",";
-    const rawCells = line.split(delimiter).map((cell) => cell.trim());
-    const cells = rawCells.filter(Boolean);
+    const cells = parseLineCells(line, defaultPublishedAt);
 
     if (cells.length < 1) {
       issues.push({
@@ -70,6 +68,30 @@ export function parseBulkContentInput(input: string, rewardMonth: string): BulkP
   });
 
   return { rows, issues };
+}
+
+function parseLineCells(line: string, defaultPublishedAt: string) {
+  if (line.includes("\t")) {
+    return line
+      .split("\t")
+      .map((cell) => cell.trim())
+      .filter(Boolean);
+  }
+
+  const commaIndex = line.lastIndexOf(",");
+
+  if (commaIndex === -1) {
+    return [line.trim(), defaultPublishedAt];
+  }
+
+  const possibleUrl = line.slice(0, commaIndex).trim();
+  const possibleDate = line.slice(commaIndex + 1).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(possibleDate)) {
+    return [possibleUrl, possibleDate];
+  }
+
+  return [line.trim(), defaultPublishedAt];
 }
 
 export function summarizeBulkContent(rows: BulkContentRowDraft[]) {

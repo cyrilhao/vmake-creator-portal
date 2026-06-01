@@ -42,6 +42,52 @@ describe("parseBulkContentInput", () => {
     ]);
   });
 
+  it("treats commas inside a URL as part of the URL when no published date is provided", () => {
+    const result = parseBulkContentInput(
+      [
+        "https://example.com/watch?caption=before,after",
+        "https://example.com/watch?caption=before,after&v=2",
+      ].join("\n"),
+      "2026-05",
+    );
+
+    expect(result.rows).toEqual([]);
+    expect(result.issues).toEqual([
+      {
+        line: 1,
+        message: "URL must be from X, Instagram, TikTok, YouTube, Pinterest, Lemon8, or Threads.",
+      },
+      {
+        line: 2,
+        message: "URL must be from X, Instagram, TikTok, YouTube, Pinterest, Lemon8, or Threads.",
+      },
+    ]);
+  });
+
+  it("keeps distinct social URLs distinct when they contain commas but no date suffix", () => {
+    const result = parseBulkContentInput(
+      [
+        "https://www.youtube.com/watch?v=abc123&feature=share,list",
+        "https://www.youtube.com/watch?v=xyz789&feature=share,list",
+      ].join("\n"),
+      "2026-05",
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.rows).toEqual([
+      {
+        platform: "youtube",
+        url: "https://www.youtube.com/watch?v=abc123&feature=share,list",
+        publishedAt: "2026-05-01",
+      },
+      {
+        platform: "youtube",
+        url: "https://www.youtube.com/watch?v=xyz789&feature=share,list",
+        publishedAt: "2026-05-01",
+      },
+    ]);
+  });
+
   it("reports unsupported URLs", () => {
     const result = parseBulkContentInput(
       "https://example.com/post/1",
