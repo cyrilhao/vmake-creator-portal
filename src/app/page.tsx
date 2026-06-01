@@ -10,7 +10,7 @@ import {
   resolveRequestHostname,
 } from "@/lib/access/hostAccess";
 import { buildPayoutWorkbookRows } from "@/lib/export/buildPayoutWorkbookRows";
-import { getActiveCampaign, listCampaigns } from "@/lib/server/campaignService";
+import { getActiveCampaigns, listCampaigns } from "@/lib/server/campaignService";
 import { listAdminSubmissions, listCreatorSubmissions } from "@/lib/server/submissionService";
 
 const supportedPlatforms = ["X", "Instagram", "TikTok", "YouTube", "Pinterest", "Lemon8", "Threads"];
@@ -49,7 +49,7 @@ export default async function HomePage() {
   );
   const session = discordAuthConfigured ? await getServerAuthSession() : null;
   const creator = getSessionCreator(session);
-  const activeCampaign = await getActiveCampaign();
+  const activeCampaigns = await getActiveCampaigns();
   const submissionHistory = creator
     ? await listCreatorSubmissions(creator.discordUserId)
     : [];
@@ -117,23 +117,23 @@ export default async function HomePage() {
 
         <div className="rounded-[28px] border border-white/10 bg-[#0b1020]/90 p-5 shadow-[0_24px_80px_rgba(8,15,28,0.45)] sm:p-6" id="creator-submit">
           <div className="border-b border-white/10 pb-4">
-            <p className="text-sm uppercase tracking-[0.24em] text-cyan-300">Active campaign</p>
+            <p className="text-sm uppercase tracking-[0.24em] text-cyan-300">Active campaigns</p>
             <h3 className="mt-2 text-2xl font-semibold text-white">Creator submission</h3>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              {activeCampaign
-                ? `${activeCampaign.name} is currently open. Final payout is confirmed after internal review.`
+              {activeCampaigns.length > 0
+                ? `${activeCampaigns.length} campaign${activeCampaigns.length === 1 ? "" : "s"} are currently open. Final payout is confirmed after internal review.`
                 : "No campaign is active right now. Ask the admin team to open the next campaign."}
             </p>
           </div>
 
           <div className="mt-5">
-            {creator && activeCampaign ? (
+            {creator && activeCampaigns.length > 0 ? (
               <CreatorSubmissionForm
-                campaign={{
-                  id: activeCampaign.id,
-                  name: activeCampaign.name,
-                  rewardMonth: activeCampaign.rewardMonth,
-                }}
+                campaigns={activeCampaigns.map((campaign) => ({
+                  id: campaign.id,
+                  name: campaign.name,
+                  rewardMonth: campaign.rewardMonth,
+                }))}
                 creator={creator}
                 submissionHistory={submissionHistory}
               />

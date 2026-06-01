@@ -32,21 +32,22 @@ type CreatorSubmissionHistoryItem = {
 };
 
 export function CreatorSubmissionForm({
-  campaign,
+  campaigns,
   creator,
   submissionHistory,
 }: {
-  campaign: {
+  campaigns: Array<{
     id: string;
     name: string;
     rewardMonth: string;
-  };
+  }>;
   creator: {
     discordUserId: string;
     discordUsername: string;
   };
   submissionHistory: CreatorSubmissionHistoryItem[];
 }) {
+  const [selectedCampaignId, setSelectedCampaignId] = useState(campaigns[0]?.id ?? "");
   const [creatorFullName, setCreatorFullName] = useState("");
   const [paypalEmail, setPaypalEmail] = useState("");
   const [bulkInput, setBulkInput] = useState("");
@@ -59,6 +60,8 @@ export function CreatorSubmissionForm({
   const [bulkParseMessages, setBulkParseMessages] = useState<string[]>([]);
   const [submittedPreview, setSubmittedPreview] = useState<SubmittedPreview | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedCampaign =
+    campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? campaigns[0];
 
   const referralDiscordUsernames = useMemo(
     () =>
@@ -71,8 +74,8 @@ export function CreatorSubmissionForm({
 
   const issueSummary = useMemo(() => summarizeIssues(issues), [issues]);
   const parsedPreview = useMemo(
-    () => parseBulkContentInput(bulkInput, campaign.rewardMonth),
-    [bulkInput, campaign.rewardMonth],
+    () => parseBulkContentInput(bulkInput, selectedCampaign?.rewardMonth ?? ""),
+    [bulkInput, selectedCampaign?.rewardMonth],
   );
   const requiredPlatforms = useMemo(
     () =>
@@ -94,13 +97,23 @@ export function CreatorSubmissionForm({
     }
 
     const totalViews = Number(totalMonthlyViews);
+    if (!selectedCampaign) {
+      setIssues([
+        {
+          field: "campaignId",
+          message: "Select an active campaign before submitting.",
+        },
+      ]);
+      return;
+    }
+
     const draft: CreatorSubmissionDraft = {
       creatorDiscordId: creator.discordUserId,
       creatorFullName,
       paypalEmail,
-      campaignId: campaign.id,
-      campaignName: campaign.name,
-      rewardMonth: campaign.rewardMonth,
+      campaignId: selectedCampaign.id,
+      campaignName: selectedCampaign.name,
+      rewardMonth: selectedCampaign.rewardMonth,
       status: "submitted",
       referralDiscordUsernames,
       platformProofs: requiredPlatforms.flatMap((platform) =>
@@ -142,7 +155,7 @@ export function CreatorSubmissionForm({
       const formData = new FormData();
       formData.set("creatorFullName", draft.creatorFullName);
       formData.set("paypalEmail", draft.paypalEmail);
-      formData.set("campaignId", campaign.id);
+      formData.set("campaignId", selectedCampaign.id);
       formData.set("bulkInput", bulkInput);
       formData.set("totalMonthlyViews", String(totalViews));
       formData.set("referralDiscordUsernames", JSON.stringify(referralDiscordUsernames));
@@ -224,11 +237,25 @@ export function CreatorSubmissionForm({
           </FieldShell>
 
           <FieldShell label="Campaign name">
-            <input className="creator-input" readOnly value={campaign.name} />
+            <select
+              className="creator-input"
+              onChange={(event) => setSelectedCampaignId(event.target.value)}
+              value={selectedCampaign?.id ?? ""}
+            >
+              {campaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
           </FieldShell>
 
           <FieldShell label="Campaign reward month">
-            <input className="creator-input" readOnly value={formatRewardMonth(campaign.rewardMonth)} />
+            <input
+              className="creator-input"
+              readOnly
+              value={selectedCampaign ? formatRewardMonth(selectedCampaign.rewardMonth) : ""}
+            />
           </FieldShell>
         </div>
 

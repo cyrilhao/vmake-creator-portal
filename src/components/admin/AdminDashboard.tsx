@@ -46,7 +46,8 @@ export function AdminDashboard({
     creatorSummaries[0] ??
     null;
 
-  const activeCampaign = campaigns.find((campaign) => campaign.isActive) ?? null;
+  const activeCampaigns = campaigns.filter((campaign) => campaign.isActive);
+  const activeCampaign = activeCampaigns[0] ?? null;
 
   return (
     <main className="min-h-screen bg-[#08111f] text-white">
@@ -100,11 +101,17 @@ export function AdminDashboard({
               </p>
               {activeCampaign ? (
                 <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-100">Current active campaign</p>
-                  <p className="mt-2 text-base font-semibold text-white">{activeCampaign.name}</p>
-                  <p className="mt-1 text-sm text-emerald-100/80">
-                    Month {formatRewardMonthShort(activeCampaign.rewardMonth)}
-                  </p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-100">Currently active</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {activeCampaigns.map((campaign) => (
+                      <span
+                        className="rounded-full border border-emerald-200/20 bg-emerald-950/20 px-3 py-1 text-sm text-white"
+                        key={campaign.id}
+                      >
+                        {campaign.name} · {formatRewardMonthShort(campaign.rewardMonth)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -161,11 +168,7 @@ export function AdminDashboard({
                       const nextCampaign = payload.campaign as CampaignSummary;
                       setCampaigns((current) => [
                         { ...nextCampaign, isActive: true, status: "active" as const },
-                        ...current.map((item) => ({
-                          ...item,
-                          isActive: false,
-                          status: "archived" as const,
-                        })),
+                        ...current,
                       ]);
                       setCampaignName("");
                       setCampaignRewardMonth(defaultCampaignMonthOption());
@@ -195,9 +198,42 @@ export function AdminDashboard({
                 </div>
                 <div className="flex items-center gap-3">
                   {campaign.isActive ? (
-                    <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
-                      Active
-                    </span>
+                    <>
+                      <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
+                        Active
+                      </span>
+                      <button
+                        className="rounded-lg border border-red-300/20 px-3 py-2 text-sm text-red-100 hover:bg-red-300/10"
+                        disabled={isCampaignPending}
+                        onClick={() =>
+                          startCampaignTransition(async () => {
+                            setCampaignMessage("");
+                            const response = await fetch(
+                              `/api/admin/campaigns/${campaign.id}/end`,
+                              { method: "POST" },
+                            );
+                            const payload = await response.json();
+
+                            if (!response.ok) {
+                              setCampaignMessage(payload.message ?? "Unable to end campaign.");
+                              return;
+                            }
+
+                            setCampaigns((current) =>
+                              current.map((item) =>
+                                item.id === campaign.id
+                                  ? { ...item, isActive: false, status: "archived" as const }
+                                  : item,
+                              ),
+                            );
+                            setCampaignMessage(`${campaign.name} has been ended.`);
+                          })
+                        }
+                        type="button"
+                      >
+                        End campaign
+                      </button>
+                    </>
                   ) : (
                     <button
                       className="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/[0.05]"
@@ -219,8 +255,8 @@ export function AdminDashboard({
                           setCampaigns((current) =>
                             current.map((item) => ({
                               ...item,
-                              isActive: item.id === campaign.id,
-                              status: item.id === campaign.id ? "active" : "archived",
+                              isActive: item.id === campaign.id ? true : item.isActive,
+                              status: item.id === campaign.id ? "active" : item.status,
                             })),
                           );
                           setCampaignMessage(`Active campaign updated to ${campaign.name}.`);

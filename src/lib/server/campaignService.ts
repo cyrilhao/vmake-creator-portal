@@ -8,22 +8,29 @@ export type CampaignSummary = {
   isActive: boolean;
 };
 
-export async function getActiveCampaign() {
-  const campaign = await prisma.campaign.findFirst({
+export async function getActiveCampaigns() {
+  let campaigns = await prisma.campaign.findMany({
     where: {
       isActive: true,
       status: "active",
     },
-    orderBy: {
-      updatedAt: "desc",
-    },
+    orderBy: [
+      { rewardMonth: "desc" },
+      { updatedAt: "desc" },
+    ],
   });
 
-  if (campaign) {
-    return campaign;
+  if (campaigns.length > 0) {
+    return campaigns;
   }
 
-  return ensureDefaultCampaign();
+  const defaultCampaign = await ensureDefaultCampaign();
+  return [defaultCampaign];
+}
+
+export async function getActiveCampaign() {
+  const campaigns = await getActiveCampaigns();
+  return campaigns[0] ?? null;
 }
 
 export async function listCampaigns(): Promise<CampaignSummary[]> {
@@ -66,14 +73,6 @@ export async function createCampaign(input: { name: string; rewardMonth: string;
   }
 
   return prisma.$transaction(async (tx) => {
-    if (input.activate) {
-      await tx.campaign.updateMany({
-        data: {
-          isActive: false,
-        },
-      });
-    }
-
     const existing = await tx.campaign.findUnique({
       where: {
         name,
@@ -137,26 +136,26 @@ function normalizeRewardMonthInput(value: string) {
 }
 
 export async function activateCampaign(campaignId: string) {
-  return prisma.$transaction(async (tx) => {
-    await tx.campaign.updateMany({
-      data: {
-        isActive: false,
-        status: "archived",
-      },
-      where: {
-        isActive: true,
-      },
-    });
+  return prisma.campaign.update({
+    where: {
+      id: campaignId,
+    },
+    data: {
+      isActive: true,
+      status: "active",
+    },
+  });
+}
 
-    return tx.campaign.update({
-      where: {
-        id: campaignId,
-      },
-      data: {
-        isActive: true,
-        status: "active",
-      },
-    });
+export async function endCampaign(campaignId: string) {
+  return prisma.campaign.update({
+    where: {
+      id: campaignId,
+    },
+    data: {
+      isActive: false,
+      status: "archived",
+    },
   });
 }
 
