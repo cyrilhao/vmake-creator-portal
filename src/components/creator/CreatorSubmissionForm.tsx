@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supportedPlatforms, type Platform } from "@/lib/rewards/rewardTypes";
 import { parseBulkContentInput, summarizeBulkContent } from "@/lib/submissions/parseBulkContent";
 import type { SubmissionValidationIssue } from "@/lib/submissions/submissionTypes";
@@ -60,6 +61,7 @@ export function CreatorSubmissionForm({
   const [bulkParseMessages, setBulkParseMessages] = useState<string[]>([]);
   const [submittedPreview, setSubmittedPreview] = useState<SubmittedPreview | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
   const selectedCampaign =
     campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? campaigns[0];
 
@@ -151,6 +153,8 @@ export function CreatorSubmissionForm({
 
     try {
       setIsSubmitting(true);
+      setIssues([]);
+      setSubmittedPreview(null);
 
       const formData = new FormData();
       formData.set("creatorFullName", draft.creatorFullName);
@@ -170,8 +174,7 @@ export function CreatorSubmissionForm({
         method: "POST",
         body: formData,
       });
-
-      const payload = await response.json();
+      const payload = await parseSubmissionResponse(response);
 
       if (!response.ok) {
         setIssues(payload.issues ?? []);
@@ -194,6 +197,17 @@ export function CreatorSubmissionForm({
       setTotalMonthlyViews("");
       setReferralText("");
       setPlatformProofFiles({});
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to submit creator content", error);
+      setIssues([
+        {
+          field: "form",
+          message:
+            "Submission could not be completed. Please try again. If it keeps happening, the request is likely failing before the app can save it.",
+        },
+      ]);
+      setSubmittedPreview(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -591,4 +605,15 @@ function dedupeFiles(files: File[]) {
     seenFiles.add(fileKey);
     return true;
   });
+}
+
+async function parseSubmissionResponse(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  throw new Error(`Unexpected submission response: ${text.slice(0, 200)}`);
 }
