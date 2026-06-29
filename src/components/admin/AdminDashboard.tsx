@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { AdminSubmissionListItem, PayoutWorkbookRow } from "@/lib/admin/adminTypes";
 import { formatRewardMonthShort, type CampaignSummary } from "@/lib/server/campaignService";
 
@@ -38,8 +39,11 @@ export function AdminDashboard({
   const [campaignName, setCampaignName] = useState("");
   const [campaignRewardMonth, setCampaignRewardMonth] = useState(defaultCampaignMonthOption());
   const [campaignMessage, setCampaignMessage] = useState("");
+  const [submissionMessage, setSubmissionMessage] = useState("");
+  const [deletingSubmissionId, setDeletingSubmissionId] = useState<string | null>(null);
   const [isCampaignPending, startCampaignTransition] = useTransition();
   const campaignMonthOptions = useMemo(() => buildCampaignMonthOptions(), []);
+  const router = useRouter();
 
   const selectedCreator =
     creatorSummaries.find((creator) => creator.id === selectedCreatorId) ??
@@ -394,6 +398,56 @@ export function AdminDashboard({
                           </div>
                         </div>
 
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            className="rounded-lg border border-red-300/20 px-3 py-2 text-sm text-red-100 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:opacity-70"
+                            disabled={deletingSubmissionId === submission.id}
+                            onClick={async () => {
+                              const confirmed = window.confirm(
+                                `Delete submission for ${submission.creatorName ?? "this creator"} in ${submission.monthLabel}? This cannot be undone.`,
+                              );
+
+                              if (!confirmed) {
+                                return;
+                              }
+
+                              setDeletingSubmissionId(submission.id);
+                              setSubmissionMessage("");
+
+                              try {
+                                const response = await fetch(
+                                  `/api/admin/submissions/${submission.id}`,
+                                  {
+                                    method: "DELETE",
+                                  },
+                                );
+                                const payload = await response.json();
+
+                                if (!response.ok) {
+                                  setSubmissionMessage(payload.message ?? "Unable to delete submission.");
+                                  return;
+                                }
+
+                                setSubmissionMessage("Submission deleted.");
+                                router.refresh();
+                              } catch (error) {
+                                setSubmissionMessage(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Unable to delete submission.",
+                                );
+                              } finally {
+                                setDeletingSubmissionId(null);
+                              }
+                            }}
+                            type="button"
+                          >
+                            {deletingSubmissionId === submission.id
+                              ? "Deleting..."
+                              : "Delete submission"}
+                          </button>
+                        </div>
+
                         <div className="mt-4 flex flex-wrap gap-2">
                           {submission.platforms.map((platform) => (
                             <span
@@ -524,6 +578,9 @@ export function AdminDashboard({
                     </div>
                   </aside>
                 </div>
+                {submissionMessage ? (
+                  <p className="mt-4 text-sm text-cyan-200">{submissionMessage}</p>
+                ) : null}
               </>
             ) : (
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
