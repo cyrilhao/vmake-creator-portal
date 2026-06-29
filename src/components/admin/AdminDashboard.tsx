@@ -31,7 +31,11 @@ export function AdminDashboard({
   payoutRows: PayoutWorkbookRow[];
   campaigns: CampaignSummary[];
 }) {
-  const creatorSummaries = useMemo(() => buildCreatorSummaries(submissions), [submissions]);
+  const [visibleSubmissions, setVisibleSubmissions] = useState(submissions);
+  const creatorSummaries = useMemo(
+    () => buildCreatorSummaries(visibleSubmissions),
+    [visibleSubmissions],
+  );
   const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(
     creatorSummaries[0]?.id ?? null,
   );
@@ -69,14 +73,14 @@ export function AdminDashboard({
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <SummaryStat label="Creators" value={String(creatorSummaries.length)} />
-              <SummaryStat label="Submissions" value={String(submissions.length)} />
+              <SummaryStat label="Submissions" value={String(visibleSubmissions.length)} />
               <SummaryStat
                 label="Views"
-                value={formatViews(sumAmounts(submissions.map((item) => item.totalViews)))}
+                value={formatViews(sumAmounts(visibleSubmissions.map((item) => item.totalViews)))}
               />
               <SummaryStat
                 label="Estimate"
-                value={formatMoney(sumAmounts(submissions.map((item) => item.systemEstimatedAmount)))}
+                value={formatMoney(sumAmounts(visibleSubmissions.map((item) => item.systemEstimatedAmount)))}
               />
             </div>
           </div>
@@ -429,6 +433,16 @@ export function AdminDashboard({
                                 }
 
                                 setSubmissionMessage("Submission deleted.");
+                                setVisibleSubmissions((current) => {
+                                  const next = current.filter((item) => item.id !== submission.id);
+                                  const nextSummaries = buildCreatorSummaries(next);
+
+                                  if (!nextSummaries.some((item) => item.id === selectedCreatorId)) {
+                                    setSelectedCreatorId(nextSummaries[0]?.id ?? null);
+                                  }
+
+                                  return next;
+                                });
                                 router.refresh();
                               } catch (error) {
                                 setSubmissionMessage(
