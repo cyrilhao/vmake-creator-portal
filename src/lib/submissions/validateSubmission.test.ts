@@ -266,9 +266,14 @@ describe("validateCreatorSubmission", () => {
   it.each([
     ["x", "https://x.com/vmake/status/123"],
     ["x", "https://twitter.com/vmake/status/123"],
+    ["x", "https://mobile.twitter.com/vmake/status/123"],
     ["instagram", "https://www.instagram.com/reel/abc"],
+    ["instagram", "https://instagr.am/p/abc"],
     ["tiktok", "https://www.tiktok.com/@vmake/video/1"],
+    ["tiktok", "https://vt.tiktok.com/ZSabc123"],
     ["youtube", "https://youtu.be/abc"],
+    ["youtube", "https://m.youtube.com/shorts/abc"],
+    ["youtube", "https://www.youtube-nocookie.com/embed/abc"],
     ["pinterest", "https://www.pinterest.com/pin/123"],
     ["pinterest", "https://pin.it/abc"],
     ["lemon8", "https://www.lemon8-app.com/post/123"],
@@ -289,6 +294,42 @@ describe("validateCreatorSubmission", () => {
             url,
             publishedAt: "2026-05-10",
             monthlyViews: 1000,
+          },
+        ],
+      }),
+      [],
+    );
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("accepts mainstream links even when creators omit https", () => {
+    const result = validateCreatorSubmission(
+      draft({
+        platformProofs: [
+          {
+            platform: "youtube",
+            blobUrl: "https://blob.example/youtube-proof.png",
+            filename: "youtube-proof.png",
+          },
+          {
+            platform: "instagram",
+            blobUrl: "https://blob.example/instagram-proof.png",
+            filename: "instagram-proof.png",
+          },
+        ],
+        contentItems: [
+          {
+            platform: "youtube",
+            url: "youtube.com/watch?v=abc123",
+            publishedAt: "2026-05-10",
+            monthlyViews: 1000,
+          },
+          {
+            platform: "instagram",
+            url: "www.instagram.com/reel/abc123",
+            publishedAt: "2026-05-11",
+            monthlyViews: 2000,
           },
         ],
       }),

@@ -1,4 +1,5 @@
 import type { Platform } from "@/lib/rewards/rewardTypes";
+import { detectPlatformFromUrl } from "./platformUrlDetection";
 
 export type BulkContentRowDraft = {
   platform: Platform;
@@ -17,16 +18,6 @@ export type BulkParseResult = {
 };
 
 export type PlatformContentCount = Record<Platform, number>;
-
-const platformHosts: Record<Platform, string[]> = {
-  x: ["x.com", "twitter.com"],
-  instagram: ["instagram.com"],
-  tiktok: ["tiktok.com"],
-  youtube: ["youtube.com", "youtu.be"],
-  pinterest: ["pinterest.com", "pin.it"],
-  lemon8: ["lemon8-app.com", "lemon8.com"],
-  threads: ["threads.net"],
-};
 
 export function parseBulkContentInput(input: string, rewardMonth: string): BulkParseResult {
   const issues: BulkParseIssue[] = [];
@@ -113,20 +104,4 @@ export function summarizeBulkContent(rows: BulkContentRowDraft[]) {
     contentCount: rows.length,
     platformContentCounts,
   };
-}
-
-function detectPlatformFromUrl(url: string) {
-  let hostname: string;
-
-  try {
-    hostname = new URL(url.trim()).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-
-  return (
-    Object.entries(platformHosts).find(([, hosts]) =>
-      hosts.some((host) => hostname === host || hostname.endsWith(`.${host}`)),
-    )?.[0] ?? null
-  ) as Platform | null;
 }

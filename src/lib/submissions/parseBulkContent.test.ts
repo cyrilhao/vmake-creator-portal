@@ -42,6 +42,32 @@ describe("parseBulkContentInput", () => {
     ]);
   });
 
+  it("detects mainstream social URL variants by domain keyword", () => {
+    const result = parseBulkContentInput(
+      [
+        "mobile.twitter.com/vmake/status/123",
+        "instagr.am/p/abc123",
+        "vt.tiktok.com/ZSabc123",
+        "m.youtube.com/shorts/xyz789",
+        "pin.it/abc123",
+        "www.lemon8-app.com/post/123",
+        "threads.net/@vmake/post/123",
+      ].join("\n"),
+      "2026-05",
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.rows.map((row) => row.platform)).toEqual([
+      "x",
+      "instagram",
+      "tiktok",
+      "youtube",
+      "pinterest",
+      "lemon8",
+      "threads",
+    ]);
+  });
+
   it("treats commas inside a URL as part of the URL when no published date is provided", () => {
     const result = parseBulkContentInput(
       [
@@ -100,6 +126,24 @@ describe("parseBulkContentInput", () => {
         line: 1,
         message: "URL must be from X, Instagram, TikTok, YouTube, Pinterest, Lemon8, or Threads.",
       },
+    ]);
+  });
+
+  it("accepts links pasted without a scheme", () => {
+    const result = parseBulkContentInput(
+      [
+        "x.com/vmake/status/123",
+        "youtube.com/watch?v=abc123",
+        "www.instagram.com/reel/abc123",
+      ].join("\n"),
+      "2026-05",
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.rows.map((row) => row.platform)).toEqual([
+      "x",
+      "youtube",
+      "instagram",
     ]);
   });
 

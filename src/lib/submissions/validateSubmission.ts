@@ -5,6 +5,7 @@ import type {
   SubmissionValidationResult,
 } from "./submissionTypes";
 import type { Platform } from "@/lib/rewards/rewardTypes";
+import { urlMatchesPlatform } from "./platformUrlDetection";
 
 const activeSubmissionStatuses = new Set([
   "draft",
@@ -13,16 +14,6 @@ const activeSubmissionStatuses = new Set([
   "approved",
   "paid",
 ]);
-
-const platformHosts: Record<string, string[]> = {
-  x: ["x.com", "twitter.com"],
-  instagram: ["instagram.com"],
-  tiktok: ["tiktok.com"],
-  youtube: ["youtube.com", "youtu.be"],
-  pinterest: ["pinterest.com", "pin.it"],
-  lemon8: ["lemon8-app.com", "lemon8.com"],
-  threads: ["threads.net"],
-};
 
 export function validateCreatorSubmission(
   draft: CreatorSubmissionDraft,
@@ -188,26 +179,6 @@ function isDateInRewardMonth(dateValue: string, rewardMonth: string) {
     parsedDate.getUTCFullYear() === year &&
     parsedDate.getUTCMonth() + 1 === month
   );
-}
-
-function urlMatchesPlatform(platform: string, url: string) {
-  if (!url) {
-    return true;
-  }
-
-  let hostname: string;
-
-  try {
-    hostname = new URL(url).hostname.toLowerCase();
-  } catch {
-    return false;
-  }
-
-  const allowedHosts = platformHosts[platform];
-
-  return allowedHosts
-    ? allowedHosts.some((host) => hostname === host || hostname.endsWith(`.${host}`))
-    : false;
 }
 
 function isValidDiscordUsername(username: string) {
